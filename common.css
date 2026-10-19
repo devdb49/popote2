@@ -1,0 +1,25 @@
+/* Polices embarquées (fonctionnent hors ligne). Licences OFL dans fonts/. */
+@font-face { font-family: "Big Shoulders Stencil"; font-weight: 800; font-display: swap; src: url(fonts/big-shoulders-stencil-display-latin-800-normal.woff2) format("woff2"); }
+@font-face { font-family: "Big Shoulders"; font-weight: 600; font-display: swap; src: url(fonts/big-shoulders-display-latin-600-normal.woff2) format("woff2"); }
+@font-face { font-family: "Big Shoulders"; font-weight: 700; font-display: swap; src: url(fonts/big-shoulders-display-latin-700-normal.woff2) format("woff2"); }
+@font-face { font-family: "Big Shoulders"; font-weight: 800; font-display: swap; src: url(fonts/big-shoulders-display-latin-800-normal.woff2) format("woff2"); }
+@font-face { font-family: "Barlow"; font-weight: 400; font-display: swap; src: url(fonts/barlow-latin-400-normal.woff2) format("woff2"); }
+@font-face { font-family: "Barlow"; font-weight: 500; font-display: swap; src: url(fonts/barlow-latin-500-normal.woff2) format("woff2"); }
+@font-face { font-family: "Barlow"; font-weight: 600; font-display: swap; src: url(fonts/barlow-latin-600-normal.woff2) format("woff2"); }
+
+:root {
+  --stencil: "Big Shoulders Stencil", "Big Shoulders", "Arial Narrow", system-ui, sans-serif;
+  --display: "Big Shoulders", "Arial Narrow", system-ui, sans-serif;
+  --text: "Barlow", system-ui, -apple-system, sans-serif;
+  color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; font-family: var(--text); }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+[hidden] { display: none !important; }
+.num { font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

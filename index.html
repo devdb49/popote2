@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Popote">
+<meta name="theme-color" content="#0F1416">
+<meta name="robots" content="noindex">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; style-src 'self'; script-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="stylesheet" href="common.css">
+<link rel="stylesheet" href="theme.css">
+<title>Popote</title>
+</head>
+<body>
+
+<div id="v-kiosk">
+<!-- ===================================================== CHOIX DE LA SECTION -->
+<section class="screen" id="s-sections" hidden>
+  <div class="lamp" aria-hidden="true"><span class="cord"></span><span class="shade"></span><span class="bulb"></span><span class="cone"></span></div>
+  <header class="home-head">
+    <h1 class="brand">La Popote</h1>
+    <p class="clock clock-live" aria-hidden="true"></p>
+  </header>
+  <div class="choose">
+    <p class="choose-title">Choisissez votre section</p>
+    <div class="section-choices" id="section-choices"></div>
+  </div>
+  <footer class="home-foot">
+    <span class="app-version" aria-label="Version"></span>
+  </footer>
+</section>
+
+<!-- ===================================================== ACCUEIL DE LA SECTION -->
+<section class="screen" id="s-home" hidden>
+  <div class="lamp" aria-hidden="true"><span class="cord"></span><span class="shade"></span><span class="bulb"></span><span class="cone"></span></div>
+  <header class="home-head">
+    <h1 class="brand" id="brand">La Popote</h1>
+    <div class="sec-head">
+      <p class="sec-name" id="sec-name"></p>
+      <p class="sec-status" id="sec-status"></p>
+      <p class="clock clock-live" aria-hidden="true"></p>
+    </div>
+  </header>
+  <div class="home-main">
+    <div class="home-board">
+      <ul class="board" id="board" aria-label="Produits et prix"></ul>
+      <p class="board-empty" id="board-empty" hidden>La carte n'est pas encore remplie. Un responsable peut ajouter les produits.</p>
+    </div>
+  </div>
+  <div class="home-actions">
+    <p class="hint" id="home-hint">Chaque consommation est déduite de votre carte.<br>Rechargez-la auprès d'un responsable.</p>
+    <button class="btn btn-ghost btn-lg" data-go="register">Créer ma carte</button>
+    <button class="btn btn-brass btn-xl" data-go="login" id="btn-order">Commander</button>
+  </div>
+  <footer class="home-foot">
+    <span class="app-version" aria-label="Version"></span>
+    <button class="btn btn-ghost btn-sm" id="btn-switch">Changer de section</button>
+    <button class="btn btn-ghost btn-sm btn-admin" id="btn-admin">Responsable</button>
+  </footer>
+  <div class="hold-ring" id="hold-ring" aria-hidden="true"></div>
+</section>
+
+<!-- ===================================================== IDENTIFICATION / CRÉATION -->
+<section class="screen" id="s-auth" hidden>
+  <header class="topbar">
+    <button class="btn btn-ghost btn-sm" data-go="home" id="auth-back">Retour</button>
+    <h2 id="auth-title">Identification</h2>
+    <span></span>
+  </header>
+  <div class="auth">
+    <p class="auth-intro" id="auth-intro" hidden></p>
+    <div class="auth-left" id="auth-name-block">
+      <label for="name" class="field-label">Votre identifiant</label>
+      <input id="name" class="name-input upper" type="text" autocomplete="off" autocorrect="off"
+             autocapitalize="characters" spellcheck="false" maxlength="40" enterkeyhint="next">
+      <p class="field-help" id="name-help">Celui choisi lors de la création de votre carte.</p>
+      <p class="error" id="auth-error" role="alert"></p>
+    </div>
+    <div class="auth-right">
+      <p class="field-label" id="code-label">Votre code à 6 chiffres</p>
+      <div class="dots" id="dots" aria-live="polite"></div>
+      <div class="keypad" id="keypad">
+        <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>
+        <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
+        <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button>
+        <button data-k="del" class="key-alt" aria-label="Effacer">Effacer</button>
+        <button data-k="0">0</button>
+        <button data-k="ok" class="key-ok" id="key-ok" disabled>Valider</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== CHOIX DE LA BOISSON -->
+<section class="screen" id="s-menu" hidden>
+  <header class="topbar menu-top">
+    <div>
+      <p class="hello" id="hello"></p>
+      <p class="slate" id="slate"></p>
+    </div>
+    <button class="btn btn-ghost btn-sm" id="btn-finish">Terminer</button>
+  </header>
+  <nav class="cat-tabs" id="cat-tabs" role="tablist" aria-label="Catégories"></nav>
+  <p class="menu-note" id="menu-note" hidden>Solde insuffisant pour commander : rechargez votre carte auprès d'un responsable.</p>
+  <div class="drinks" id="drinks"></div>
+</section>
+
+<!-- ===================================================== CONFIRMATION -->
+<section class="screen" id="s-done" hidden>
+  <div class="done">
+    <div class="tick" aria-hidden="true"></div>
+    <h2 id="done-title"></h2>
+    <p class="done-slate" id="done-slate"></p>
+    <div class="done-actions">
+      <button class="btn btn-ghost btn-lg" id="btn-again">Autre commande</button>
+      <button class="btn btn-brass btn-lg" id="btn-done">Terminer <span id="done-count" class="num"></span></button>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== CARTE EN ATTENTE -->
+<section class="screen" id="s-pending" hidden>
+  <div class="done">
+    <div class="hourglass" aria-hidden="true"></div>
+    <h2>Carte créée</h2>
+    <p class="done-slate">Merci <strong id="pending-name"></strong>. Un responsable doit maintenant valider votre carte.
+      Vous pourrez commander dès qu'elle sera validée, avec votre nom et votre code.</p>
+    <div class="done-actions">
+      <button class="btn btn-brass btn-lg" id="btn-pending-ok">J'ai compris <span id="pending-count" class="num"></span></button>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== ERREUR FATALE -->
+<section class="screen" id="s-fatal" hidden>
+  <div class="form-col setup">
+    <h1 class="brand">La Popote</h1>
+    <p class="error" id="fatal-msg"></p>
+  </div>
+</section>
+
+<!-- Feuille de quantité -->
+<div class="sheet-backdrop" id="sheet" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-name">
+    <div class="sheet-emoji" id="sheet-emoji"></div>
+    <h3 id="sheet-name"></h3>
+    <p class="sheet-unit num" id="sheet-unit"></p>
+    <p class="sheet-after num" id="sheet-after"></p>
+    <div class="qty">
+      <button class="qty-btn" id="qty-minus" aria-label="Moins">−</button>
+      <span class="qty-val num" id="qty-val">1</span>
+      <button class="qty-btn" id="qty-plus" aria-label="Plus">+</button>
+    </div>
+    <button class="btn btn-brass btn-lg btn-block" id="sheet-ok">Valider la commande</button>
+    <button class="btn btn-ghost btn-block" id="sheet-cancel">Annuler</button>
+    <p class="error" id="sheet-error" role="alert"></p>
+  </div>
+</div>
+
+<div class="idle" id="idle" hidden>
+  <p>Toujours là ?</p>
+  <p class="idle-sub">Retour à l'accueil dans <span id="idle-count" class="num"></span> s</p>
+  <button class="btn btn-brass btn-lg" id="idle-stay">Je continue</button>
+</div>
+</div>
+
+<!-- ===================================================== GESTION (RESPONSABLES) -->
+<div id="v-admin" hidden>
+  <header class="top">
+    <span class="brand">La Popote</span>
+    <span class="sec-pill" id="adm-section"></span>
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="users" aria-selected="true">Ardoises</button>
+      <button role="tab" data-tab="drinks">Produits</button>
+      <button role="tab" data-tab="log">Journal</button>
+      <button role="tab" data-tab="admins">Responsables</button>
+      <button role="tab" data-tab="backup">Réglages</button>
+    </nav>
+    <span class="who"><span id="me"></span> <button class="btn btn-sm btn-exit" id="logout">Revenir à la borne</button></span>
+  </header>
+
+  <section class="stats" id="stats" aria-label="Résumé"></section>
+  <p class="backup-warn" id="backup-warn" hidden></p>
+
+  <!-- Ardoises -->
+  <section class="panel" id="t-users">
+    <div class="bar">
+      <input type="search" id="user-q" placeholder="Rechercher un identifiant" aria-label="Rechercher un identifiant" autocorrect="off">
+      <button class="btn" id="export-ardoises" type="button">Exporter les soldes (CSV)</button>
+    </div>
+    <table class="tbl">
+      <thead><tr><th>Identifiant</th><th class="r">Solde</th><th class="hide-sm">Dernière visite</th><th>État</th></tr></thead>
+      <tbody id="users-body"></tbody>
+    </table>
+    <p class="empty" id="users-empty" hidden>Aucune carte pour l'instant. Les usagers créent la leur sur la borne.</p>
+  </section>
+
+  <!-- Boissons -->
+  <section class="panel" id="t-drinks" hidden>
+    <form class="bar add-drink" id="drink-form" autocomplete="off">
+      <select name="category" required aria-label="Catégorie">
+        <option value="" disabled selected>Catégorie…</option>
+        <option value="biere">Bières</option>
+        <option value="soft">Softs</option>
+        <option value="divers">Divers</option>
+      </select>
+      <input name="emoji" type="hidden">
+      <button type="button" class="emoji-btn" id="new-emoji" aria-label="Choisir l'image">＋</button>
+      <input name="name" placeholder="Nom du produit" required maxlength="40" aria-label="Nom">
+      <input name="price" placeholder="Prix €" required inputmode="decimal" class="w-num" aria-label="Prix en euros">
+      <input name="stock" placeholder="Stock" inputmode="numeric" class="w-num" aria-label="Stock initial">
+      <button class="btn btn-primary" type="submit">Ajouter le produit</button>
+    </form>
+    <p class="error" id="drink-error" role="alert"></p>
+    <table class="tbl drinks-tbl">
+      <thead><tr><th>Produit</th><th class="r">Prix</th><th class="r">Stock</th><th>Réassort / inventaire</th><th></th></tr></thead>
+      <tbody id="drinks-body"></tbody>
+    </table>
+    <p class="empty" id="drinks-empty" hidden>Ajoutez un premier produit : il apparaîtra aussitôt sur la borne, dans sa catégorie.</p>
+  </section>
+
+  <!-- Journal -->
+  <section class="panel" id="t-log" hidden>
+    <div class="bar">
+      <select id="log-kind" aria-label="Type">
+        <option value="">Tout</option>
+        <option value="order">Commandes</option>
+        <option value="payment">Paiements</option>
+        <option value="adjust">Corrections</option>
+        <option value="stock">Stocks</option>
+        <option value="price">Prix</option>
+        <option value="cancel">Annulations</option>
+        <option value="card">Cartes</option>
+        <option value="setting">Réglages</option>
+      </select>
+      <label class="inline">Du <input type="date" id="log-from"></label>
+      <label class="inline">au <input type="date" id="log-to"></label>
+      <button class="btn" id="export-log" type="button">Exporter cette période (CSV)</button>
+    </div>
+    <table class="tbl">
+      <thead><tr><th>Date</th><th>Opération</th><th class="r">Ardoise</th><th class="hide-sm">Par</th><th></th></tr></thead>
+      <tbody id="log-body"></tbody>
+    </table>
+    <div class="pager"><button class="btn" id="log-more" hidden>Afficher plus</button></div>
+  </section>
+
+  <!-- Responsables -->
+  <section class="panel" id="t-admins" hidden>
+    <form class="bar" id="admin-form" autocomplete="off">
+      <input name="username" class="upper" placeholder="Identifiant" required autocapitalize="characters" autocorrect="off" aria-label="Identifiant">
+      <button class="btn btn-primary" type="submit">Ajouter un responsable…</button>
+    </form>
+    <p class="error" id="admin-error" role="alert"></p>
+    <table class="tbl">
+      <thead><tr><th>Identifiant</th><th class="hide-sm">Créé le</th><th>État</th><th></th></tr></thead>
+      <tbody id="admins-body"></tbody>
+    </table>
+  </section>
+
+  <!-- Sauvegarde -->
+  <section class="panel" id="t-backup" hidden>
+    <div class="backup-grid">
+      <div class="card card-wide">
+        <h3>Section et horaires</h3>
+        <form class="row" id="secname-form" autocomplete="off">
+          <label class="inline">Nom de la section
+            <input name="name" maxlength="30" aria-label="Nom de la section"></label>
+          <button class="btn" type="submit">Renommer</button>
+        </form>
+        <form id="hours-form" class="hours-form">
+          <p class="field-title">Ouverture des commandes</p>
+          <div class="seg" role="radiogroup" aria-label="Ouverture des commandes">
+            <label><input type="radio" name="mode" value="open"><span>Ouvert</span></label>
+            <label><input type="radio" name="mode" value="closed"><span>Fermé</span></label>
+            <label><input type="radio" name="mode" value="schedule"><span>Horaires</span></label>
+            <label><input type="radio" name="mode" value="alternate"><span>Un jour sur deux</span></label>
+          </div>
+          <div class="row" id="hours-times">
+            <label class="inline">De <input type="time" name="open" aria-label="Ouverture"></label>
+            <label class="inline">à <input type="time" name="close" aria-label="Fermeture"></label>
+          </div>
+          <div class="alt" id="hours-alt">
+            <div class="alt-row">
+              <span class="alt-tag">Jour A</span>
+              <label class="inline">De <input type="time" name="a_open" aria-label="Jour A : ouverture"></label>
+              <label class="inline">à <input type="time" name="a_close" aria-label="Jour A : fermeture"></label>
+              <label class="check sm"><input type="checkbox" name="a_closed"> Fermé</label>
+            </div>
+            <div class="alt-row">
+              <span class="alt-tag b">Jour B</span>
+              <label class="inline">De <input type="time" name="b_open" aria-label="Jour B : ouverture"></label>
+              <label class="inline">à <input type="time" name="b_close" aria-label="Jour B : fermeture"></label>
+              <label class="check sm"><input type="checkbox" name="b_closed"> Fermé</label>
+            </div>
+            <div class="alt-row">
+              <span class="field-title">Aujourd'hui, c'est</span>
+              <div class="seg seg-sm" role="radiogroup" aria-label="Aujourd'hui">
+                <label><input type="radio" name="today" value="A"><span>le jour A</span></label>
+                <label><input type="radio" name="today" value="B"><span>le jour B</span></label>
+              </div>
+            </div>
+            <p class="muted" id="alt-preview"></p>
+          </div>
+          <button class="btn btn-primary" type="submit">Enregistrer</button>
+        </form>
+        <p class="muted">Fermé : on peut voir les tarifs et créer une carte, mais pas commander.
+           Les horaires peuvent passer minuit (ex. 20:00 à 01:00).</p>
+      </div>
+      <div class="card">
+        <h3>Commandes et solde</h3>
+        <p>Une commande n'est acceptée que si la carte a assez d'argent. Vous pouvez autoriser un petit découvert :
+           la personne pourra alors commander jusqu'à ce montant en négatif.</p>
+        <form class="row" id="overdraft-form" autocomplete="off">
+          <label class="inline">Découvert autorisé
+            <input name="amount" inputmode="decimal" class="w-num" aria-label="Découvert autorisé en euros"></label>
+          <button class="btn btn-primary" type="submit">Enregistrer</button>
+        </form>
+        <p class="muted">0 € = aucune commande au-delà du solde de la carte.</p>
+      </div>
+      <div class="card">
+        <h3>Sauvegarder</h3>
+        <p>Toutes les données (cartes, soldes, produits, journal, responsables) ne sont que dans cet iPad.
+           Faites une sauvegarde au moins une fois par semaine et rangez-la ailleurs : Fichiers / iCloud Drive,
+           AirDrop vers un autre appareil, ou e-mail.</p>
+        <p class="muted" id="backup-info"></p>
+        <button class="btn btn-primary" id="do-backup" type="button">Créer une sauvegarde</button>
+      </div>
+      <div class="card">
+        <h3>Restaurer</h3>
+        <p>Remplace <strong>toutes</strong> les données de cet iPad par celles d'une sauvegarde
+           (changement de tablette, iPad réinitialisé…). Vous devrez vous reconnecter avec un compte de la sauvegarde.</p>
+        <label class="btn" for="restore-file">Choisir un fichier de sauvegarde…</label>
+        <input type="file" id="restore-file" accept=".json,application/json" hidden>
+      </div>
+    </div>
+    <p class="error" id="backup-error" role="alert"></p>
+
+    <div class="danger-zone">
+      <h3>Remise à zéro</h3>
+      <div class="backup-grid">
+        <div class="card">
+          <h4>Réinitialiser</h4>
+          <p>Efface toutes les cartes, les soldes et le journal. Garde les produits, les prix, les stocks,
+             les responsables et les réglages. Pratique pour démarrer une nouvelle saison.</p>
+          <button class="btn btn-danger" id="do-reset" type="button">Réinitialiser…</button>
+        </div>
+        <div class="card">
+          <h4>Tout effacer</h4>
+          <p>Supprime absolument tout, responsables compris. La borne revient à sa première mise en route.</p>
+          <button class="btn btn-danger" id="do-wipe" type="button">Tout effacer…</button>
+        </div>
+      </div>
+      <p class="muted">Faites une sauvegarde avant : ces actions ne peuvent pas être annulées.</p>
+    </div>
+
+    <p class="muted version-line">Version de l'application : <span class="app-version"></span></p>
+  </section>
+
+  <!-- Fiche usager -->
+  <dialog class="fiche" id="user-dlg">
+    <div class="fiche-head">
+      <h2 id="u-name"></h2>
+      <button class="link" id="u-close" type="button">Fermer</button>
+    </div>
+    <p class="u-balance" id="u-balance"></p>
+    <div class="u-pending" id="u-pending" hidden>
+      <p>Carte en attente de validation. Vérifiez que la personne est bien autorisée à consommer à la popote.</p>
+      <div class="row">
+        <button class="btn btn-primary" id="u-approve" type="button">Valider la carte</button>
+        <button class="btn btn-danger" id="u-reject" type="button">Refuser et supprimer</button>
+      </div>
+    </div>
+    <p class="u-locked" id="u-locked" hidden>Carte bloquée après 5 codes faux.
+      <button class="btn btn-sm" id="u-unlock" type="button">Débloquer la carte</button></p>
+
+    <form class="block" id="pay-form" autocomplete="off">
+      <h3>Recharger la carte / encaisser un paiement</h3>
+      <div class="row">
+        <input name="amount" inputmode="decimal" placeholder="Montant €" required class="w-num" aria-label="Montant payé">
+        <button type="button" class="btn" id="pay-all">Tout régler</button>
+      </div>
+      <input name="note" placeholder="Note (espèces, chèque n°…, virement)" maxlength="200" aria-label="Note">
+      <button class="btn btn-primary" type="submit">Valider le paiement</button>
+    </form>
+
+    <details class="block">
+      <summary>Correction, code, compte</summary>
+      <form id="adj-form" class="sub" autocomplete="off">
+        <p class="muted">Correction du solde : +3 ajoute 3 € sur la carte, −3 retire 3 €. Le motif est obligatoire.</p>
+        <div class="row">
+          <input name="amount" inputmode="decimal" placeholder="± €" required class="w-num" aria-label="Montant de la correction">
+          <input name="note" placeholder="Motif" required maxlength="200" aria-label="Motif">
+        </div>
+        <button class="btn" type="submit">Appliquer la correction</button>
+      </form>
+      <form id="code-form" class="sub" autocomplete="off">
+        <p class="muted">Nouveau code à 6 chiffres, à communiquer à la personne.</p>
+        <div class="row">
+          <input name="code" inputmode="numeric" pattern="\d{6}" maxlength="6" required class="w-num" aria-label="Nouveau code">
+          <button class="btn" type="submit">Changer le code</button>
+        </div>
+      </form>
+      <form id="rename-form" class="sub" autocomplete="off">
+        <div class="row">
+          <input name="name" class="upper" required maxlength="40" autocapitalize="characters" autocorrect="off" aria-label="Identifiant">
+          <button class="btn" type="submit">Modifier l'identifiant</button>
+        </div>
+      </form>
+      <div class="sub row">
+        <button class="btn btn-danger" id="u-toggle" type="button"></button>
+      </div>
+    </details>
+    <p class="error" id="u-error" role="alert"></p>
+
+    <h3>Dernières opérations</h3>
+    <ul class="history" id="u-history"></ul>
+
+    <div class="u-delete" id="u-delete-zone">
+      <button class="btn btn-danger" id="u-delete" type="button">Supprimer la carte</button>
+      <p class="muted">La carte disparaît de la borne et l'identifiant redevient libre. L'historique reste dans le journal.</p>
+    </div>
+  </dialog>
+
+  <!-- Choix de l'image d'un produit -->
+  <dialog class="fiche emoji-dlg" id="emoji-dlg">
+    <div class="fiche-head">
+      <h2>Image du produit</h2>
+      <button class="link" id="emoji-close" type="button">Fermer</button>
+    </div>
+    <div class="emoji-pick" id="emoji-pick">
+      <p class="emoji-cat">Bières et alcools</p>
+      <div class="emoji-grid"><button type="button" data-e="🍺">🍺</button><button type="button" data-e="🍻">🍻</button><button type="button" data-e="🍷">🍷</button><button type="button" data-e="🥂">🥂</button><button type="button" data-e="🍾">🍾</button><button type="button" data-e="🥃">🥃</button><button type="button" data-e="🍸">🍸</button><button type="button" data-e="🍹">🍹</button></div>
+      <p class="emoji-cat">Softs</p>
+      <div class="emoji-grid"><button type="button" data-e="🥤">🥤</button><button type="button" data-e="🧃">🧃</button><button type="button" data-e="🧋">🧋</button><button type="button" data-e="💧">💧</button><button type="button" data-e="🥛">🥛</button><button type="button" data-e="☕">☕</button><button type="button" data-e="🍵">🍵</button><button type="button" data-e="🍋">🍋</button><button type="button" data-e="🍊">🍊</button><button type="button" data-e="🍎">🍎</button><button type="button" data-e="🍓">🍓</button><button type="button" data-e="🥥">🥥</button></div>
+      <p class="emoji-cat">Divers</p>
+      <div class="emoji-grid"><button type="button" data-e="🥔">🥔</button><button type="button" data-e="🥜">🥜</button><button type="button" data-e="🌭">🌭</button><button type="button" data-e="🍫">🍫</button><button type="button" data-e="🍬">🍬</button><button type="button" data-e="🍪">🍪</button><button type="button" data-e="🥨">🥨</button><button type="button" data-e="🧀">🧀</button><button type="button" data-e="🥪">🥪</button><button type="button" data-e="🍕">🍕</button><button type="button" data-e="🍿">🍿</button><button type="button" data-e="🍩">🍩</button><button type="button" data-e="🥐">🥐</button><button type="button" data-e="🍰">🍰</button><button type="button" data-e="🫒">🫒</button><button type="button" data-e="🍦">🍦</button></div>
+    </div>
+    <button class="btn" type="button" id="emoji-auto">Image automatique (d'après le nom)</button>
+  </dialog>
+
+  <!-- Saisie d'un code responsable au pavé numérique (sans clavier de l'iPad) -->
+  <dialog class="fiche code-dlg" id="code-dlg">
+    <div class="fiche-head">
+      <h2 id="cd-title"></h2>
+      <button class="link" id="cd-cancel" type="button">Annuler</button>
+    </div>
+    <p class="cd-label" id="cd-label"></p>
+    <div class="dots dots-8" id="cd-dots"></div>
+    <div class="keypad" id="cd-keypad">
+      <button type="button" data-k="1">1</button><button type="button" data-k="2">2</button><button type="button" data-k="3">3</button>
+      <button type="button" data-k="4">4</button><button type="button" data-k="5">5</button><button type="button" data-k="6">6</button>
+      <button type="button" data-k="7">7</button><button type="button" data-k="8">8</button><button type="button" data-k="9">9</button>
+      <button type="button" data-k="del" class="key-alt">Effacer</button>
+      <button type="button" data-k="0">0</button>
+      <button type="button" data-k="ok" class="key-ok" id="cd-ok" disabled>Valider</button>
+    </div>
+    <p class="error" id="cd-error" role="alert"></p>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" hidden></div>
+</div>
+
+<script src="store.js"></script>
+<script src="kiosk.js"></script>
+<script src="admin.js"></script>
+<script src="boot.js"></script>
+</body>
+</html>
