@@ -93,7 +93,7 @@ const Admin = (() => {
 
   function refresh() {
     quiet(loadStats());
-    quiet(({ users: loadUsers, drinks: loadDrinks, log: () => loadLog(true), admins: loadAdmins, backup: loadBackup })[tab]());
+    quiet(({ users: loadUsers, drinks: loadDrinks, log: () => loadLog(true), backup: loadBackup })[tab]());
   }
 
   async function loadStats() {
@@ -376,26 +376,7 @@ const Admin = (() => {
   $("export-log").addEventListener("click", () =>
     quiet(call(() => Store.exportTransactions($("log-from").value || undefined, $("log-to").value || undefined)).then(deliver)));
 
-  // ---------------------------------------------------------------- Responsables
-  async function loadAdmins() {
-    const list = await call(Store.admins);
-    $("admins-body").replaceChildren(...list.map((a) => el("tr", {},
-      el("td", {}, a.username, a.me ? el("span", { class: "muted" }, " (vous)") : ""),
-      el("td", { class: "hide-sm" }, fmtDate(a.created_at, false)),
-      el("td", {}, a.active ? "" : el("span", { class: "tag bad" }, "désactivé")),
-      el("td", { class: "r" },
-        el("button", { class: "btn btn-sm", type: "button", onclick: () => changePw(a) }, "Changer le code"), " ",
-        a.me ? "" : el("button", { class: "btn btn-sm" + (a.active ? " btn-danger" : ""), type: "button",
-          onclick: () => toggleAdmin(a) }, a.active ? "Désactiver" : "Réactiver")),
-    )));
-  }
-  async function changePw(a) {
-    const pw = await askCode(`Code de ${a.username}`);
-    if (!pw) return;
-    try { await call(() => Store.adminPatch(a.id, { password: pw })); toast(`Code de ${a.username} changé`); }
-    catch (e) { toast(e.message); }
-  }
-
+  // ---------------------------------------------------------------- Code responsable
   // Pavé numérique dans une fenêtre : code à 8 chiffres saisi deux fois. Renvoie le code ou null.
   const CODE_LEN = 8;
   let cd = null;
@@ -433,30 +414,18 @@ const Admin = (() => {
   });
   $("cd-cancel").addEventListener("click", () => cdFinish(null));
   $("code-dlg").addEventListener("cancel", () => cdFinish(null));
-  async function toggleAdmin(a) {
-    if (a.active && !confirm(`Désactiver ${a.username} ?`)) return;
-    try { await call(() => Store.adminPatch(a.id, { active: !a.active })); }
+  // Un seul code par section, partagé par les personnes qui la gèrent
+  $("do-code").addEventListener("click", async () => {
+    const code = await askCode("Nouveau code responsable");
+    if (!code) return;
+    try { await call(() => Store.setMyCode(code)); toast("Code responsable changé"); }
     catch (e) { toast(e.message); }
-    quiet(loadAdmins());
-  }
-  $("admin-form").addEventListener("submit", async (ev) => {
-    ev.preventDefault();
-    const f = ev.target.elements;
-    $("admin-error").textContent = "";
-    try {
-      const name = f.username.value.trim();
-      if (name.length < 2) { $("admin-error").textContent = "Saisissez l'identifiant du responsable"; return; }
-      document.activeElement?.blur();
-      const code = await askCode(`Code de ${name.toUpperCase()}`);
-      if (!code) return;
-      await call(() => Store.adminCreate(name, code));
-      toast(`${name.toUpperCase()} ajouté`); ev.target.reset(); quiet(loadAdmins());
-    } catch (e) { $("admin-error").textContent = e.message; }
   });
 
   // ---------------------------------------------------------------- Sauvegarde
   async function loadBackup() {
     const st = await call(Store.settings);
+    $("backup-name").value = Store.defaultBackupName();
     $("secname-form").elements.name.value = st.section_name;
     const hf = $("hours-form").elements;
     const H = st.hours;
@@ -562,7 +531,7 @@ const Admin = (() => {
   $("do-backup").addEventListener("click", async () => {
     $("backup-error").textContent = "";
     try {
-      const file = await call(Store.backup);
+      const file = await call(() => Store.backup($("backup-name").value));
       if (await deliver(file)) { await Store.markBackup(); toast("Sauvegarde créée"); quiet(loadBackup()); quiet(loadStats()); }
     } catch (e) { $("backup-error").textContent = e.message; }
   });

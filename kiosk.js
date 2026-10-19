@@ -124,13 +124,11 @@ const Kiosk = (() => {
     register: { title: "Créer ma carte", len: 6, confirm: true, back: true,
                 help: "Choisissez votre identifiant. Il doit être unique.",
                 code: "Choisissez un code à 6 chiffres" },
-    admin:    { title: "Espace responsable", len: 8, confirm: false, back: true,
-                help: "Identifiant du responsable.",
+    admin:    { title: "Espace responsable", len: 8, confirm: false, back: true, noName: true,
                 code: "Code responsable à 8 chiffres" },
-    setup:    { title: "Mise en route de la section", len: 8, confirm: true, back: true,
-                help: "Identifiant du premier responsable.",
-                code: "Choisissez un code responsable à 8 chiffres",
-                intro: "Cette section n'a pas encore de responsable. Créez le premier : il gère les produits, les tarifs, les stocks, les cartes et les autres responsables de cette section." },
+    setup:    { title: "Mise en route de la section", len: 8, confirm: true, back: true, noName: true,
+                code: "Choisissez le code responsable à 8 chiffres",
+                intro: "Cette section n'a pas encore de responsable. Choisissez le code à 8 chiffres qui ouvrira sa gestion (produits, tarifs, stocks, cartes). Il peut être partagé par les personnes qui gèrent la section." },
     newcode:  { title: "Nouveau code responsable", len: 8, confirm: true, back: false, noName: true,
                 code: "Choisissez votre code à 8 chiffres",
                 intro: "Les responsables utilisent désormais un code à 8 chiffres. Choisissez le vôtre : il remplacera votre ancien mot de passe." },
@@ -207,11 +205,11 @@ const Kiosk = (() => {
         const r = await Store.register(name, state.code);
         showPending(r.name);
       } else if (state.mode === "admin") {
-        const r = await Store.adminLogin(name, state.code);
+        const r = await Store.adminLogin(state.code);
         enterAdmin(r);
       } else if (state.mode === "setup") {
-        await Store.createFirstAdmin(name, state.code);
-        await Store.adminLogin(name, state.code);
+        await Store.createFirstAdmin(state.code);
+        await Store.adminLogin(state.code);
         Admin.open("drinks");
       } else if (state.mode === "newcode") {
         await Store.setMyCode(state.code);

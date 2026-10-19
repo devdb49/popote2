@@ -178,7 +178,6 @@
       <button role="tab" data-tab="users" aria-selected="true">Ardoises</button>
       <button role="tab" data-tab="drinks">Produits</button>
       <button role="tab" data-tab="log">Journal</button>
-      <button role="tab" data-tab="admins">Responsables</button>
       <button role="tab" data-tab="backup">Réglages</button>
     </nav>
     <span class="who"><span id="me"></span> <button class="btn btn-sm btn-exit" id="logout">Revenir à la borne</button></span>
@@ -250,17 +249,6 @@
   </section>
 
   <!-- Responsables -->
-  <section class="panel" id="t-admins" hidden>
-    <form class="bar" id="admin-form" autocomplete="off">
-      <input name="username" class="upper" placeholder="Identifiant" required autocapitalize="characters" autocorrect="off" aria-label="Identifiant">
-      <button class="btn btn-primary" type="submit">Ajouter un responsable…</button>
-    </form>
-    <p class="error" id="admin-error" role="alert"></p>
-    <table class="tbl">
-      <thead><tr><th>Identifiant</th><th class="hide-sm">Créé le</th><th>État</th><th></th></tr></thead>
-      <tbody id="admins-body"></tbody>
-    </table>
-  </section>
 
   <!-- Sauvegarde -->
   <section class="panel" id="t-backup" hidden>
@@ -323,11 +311,20 @@
         <p class="muted">0 € = aucune commande au-delà du solde de la carte.</p>
       </div>
       <div class="card">
+        <h3>Code responsable</h3>
+        <p>La gestion de cette section s'ouvre avec un seul code à 8 chiffres, partagé par les personnes qui
+           s'en occupent. Changez-le si quelqu'un ne doit plus y avoir accès.</p>
+        <button class="btn" id="do-code" type="button">Changer le code…</button>
+      </div>
+      <div class="card">
         <h3>Sauvegarder</h3>
-        <p>Toutes les données (cartes, soldes, produits, journal, responsables) ne sont que dans cet iPad.
+        <p>Toutes les données de la section (cartes, soldes, produits, journal, code responsable) ne sont que dans cet iPad.
            Faites une sauvegarde au moins une fois par semaine et rangez-la ailleurs : Fichiers / iCloud Drive,
            AirDrop vers un autre appareil, ou e-mail.</p>
         <p class="muted" id="backup-info"></p>
+        <label class="inline file-name">Nom du fichier
+          <span class="file-field"><input id="backup-name" maxlength="60" autocapitalize="none" autocorrect="off"
+                 spellcheck="false" aria-label="Nom du fichier de sauvegarde"><span class="ext">.json</span></span></label>
         <button class="btn btn-primary" id="do-backup" type="button">Créer une sauvegarde</button>
       </div>
       <div class="card">

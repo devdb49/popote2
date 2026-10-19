@@ -14,7 +14,7 @@ const Store = (() => {
     { id: "1", db: "popote",    defaultName: "Section 1" },
     { id: "2", db: "popote-s2", defaultName: "Section 2" },
   ];
-  let section = SECTIONS[0];
+    let section = SECTIONS[0];
   const MAX_FAILS = 5, LOCK_MIN = 10;
   const USER_SESSION_MS = 3 * 60_000;     // session borne
   const ADMIN_IDLE_MS = 5 * 60_000;       // déconnexion responsable après 5 min sans action
@@ -433,27 +433,35 @@ const Store = (() => {
 
   const ADMIN_RE = /^[\p{L}\p{N}._\-]{2,40}$/u;
 
-  async function createFirstAdmin(username, password) {
-    if (hasAdmins()) fail("Un responsable existe déjà", 409);
-    return adminCreate(username, password, true);
+  /* Un seul responsable par section : pas d'identifiant, un code à 8 chiffres partagé par les
+   * personnes qui gèrent la section. (Les comptes créés avant gardent leur code jusqu'au premier
+   * « Changer le code », qui ne laisse plus qu'un seul code.) */
+  const ADMIN_NAME = "RESPONSABLE";
+
+  async function createFirstAdmin(code) {
+    if (hasAdmins()) fail("Le responsable de cette section existe déjà", 409);
+    return adminCreate(ADMIN_NAME, code, true);
   }
 
-  async function adminLogin(username, password) {
-    const key = String(username).trim().toLowerCase();
-    const a0 = S.admins.find((a) => a.username.toLowerCase() === key);
-    if (!a0 || !a0.active) { await hashSecret(password || "x"); fail("Identifiants incorrects", 401); }
-    const mins = lockedMinutes(a0.locked_until);
-    if (mins) fail(`Compte bloqué, réessayez dans ${mins} min`, 423);
-    const ok = await verify(password, a0.pw_hash, a0.pw_salt);
-    await mutate((st) => {
-      const a = st.admins.find((x) => x.id === a0.id);
-      if (ok) { a.failed_attempts = 0; a.locked_until = null; return; }
-      const f = a.failed_attempts + 1;
-      if (f >= MAX_FAILS) { a.failed_attempts = 0; a.locked_until = lockTime(); } else a.failed_attempts = f;
+  async function adminLogin(code) {
+    const mins = lockedMinutes(S.meta.admin_locked_until);
+    if (mins) fail(`Trop d'essais. Réessayez dans ${mins} min.`, 423);
+    let found = null;
+    for (const a of S.admins.filter((x) => x.active)) {
+      if (await verify(String(code || ""), a.pw_hash, a.pw_salt)) { found = a; break; }
+    }
+    if (!found) await hashSecret(code || "x");             // même durée, trouvé ou non
+    const msg = await mutate((st) => {
+      if (found) { st.meta.admin_fails = 0; st.meta.admin_locked_until = null; return null; }
+      const f = (st.meta.admin_fails || 0) + 1;
+      if (f >= MAX_FAILS) { st.meta.admin_fails = 0; st.meta.admin_locked_until = lockTime();
+        return `Code incorrect. Trop d'essais : gestion bloquée ${LOCK_MIN} min.`; }
+      st.meta.admin_fails = f;
+      return `Code incorrect (${MAX_FAILS - f} essai(s) restant(s))`;
     });
-    if (!ok) fail("Identifiants incorrects", 401);
-    admin = { id: a0.id, username: a0.username, last: Date.now() };
-    return { username: a0.username, legacy: !a0.code8 };   // legacy : ancien mot de passe à remplacer
+    if (msg) fail(msg, 401);
+    admin = { id: found.id, username: ADMIN_NAME, last: Date.now() };
+    return { username: ADMIN_NAME, legacy: !found.code8 };
   }
   function adminLogout() { admin = null; }
 
@@ -716,11 +724,19 @@ const Store = (() => {
   }
 
   // ---------- sauvegarde complète / restauration
-  async function backup() {
+  // Nom de fichier proposé par défaut pour la sauvegarde (modifiable par le responsable)
+  function defaultBackupName() {
+    const slug = nameKey(S.meta.section_name).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    return `popote-${slug}-${stamp()}`;
+  }
+  async function backup(name) {
     requireAdmin();
     const data = { format: "popote-backup", version: 1, exported_at: nowIso(), state: S, tx: await allTx() };
-    const slug = nameKey(S.meta.section_name).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-    return { filename: `popote-${slug}-sauvegarde-${stamp()}.json`, type: "application/json", text: JSON.stringify(data) };
+    // on garde le nom tel que saisi ; seuls les caractères interdits dans un nom de fichier sont remplacés
+    let base = String(name || "").replace(/\.json$/i, "").replace(/[\/\\:*?"<>|\u0000-\u001f]+/g, "-")
+      .replace(/\s+/g, " ").trim().replace(/^\.+/, "").slice(0, 60);
+    if (!base) base = defaultBackupName();
+    return { filename: `${base}.json`, type: "application/json", text: JSON.stringify(data) };
   }
   async function markBackup() {
     return mutate((st) => { st.meta.last_backup = nowIso(); });
@@ -878,13 +894,15 @@ const Store = (() => {
     });
   }
   // Le responsable connecté choisit son propre code (remplace un ancien mot de passe)
+  // Nouveau code du responsable de la section : remplace tous les anciens codes/comptes.
   async function setMyCode(code) {
     const me = requireAdmin();
     checkAdminCode(code);
     const h = await hashSecret(code);
-    return mutate((st) => {
-      const a = st.admins.find((x) => x.id === me.id);
-      a.pw_hash = h.hash; a.pw_salt = h.salt; a.code8 = true;
+    return mutate((st, log) => {
+      st.admins = [{ id: me.id, username: ADMIN_NAME, pw_hash: h.hash, pw_salt: h.salt, code8: true, active: true,
+                     failed_attempts: 0, locked_until: null, created_at: nowIso() }];
+      log({ kind: "setting", note: "Code responsable changé" });
       return { ok: true };
     });
   }
@@ -925,7 +943,7 @@ const Store = (() => {
     stats, users, userPatch, approveUser, rejectUser, deleteUser, payment, adjust,
     drinks, drinkCreate, drinkPatch, drinkStock,
     transactions, cancel, exportTransactions, exportBalances,
-    backup, markBackup, restore, storageInfo, settings, setOverdraft, resetActivity, wipeAll,
+    backup, defaultBackupName, markBackup, restore, storageInfo, settings, setOverdraft, resetActivity, wipeAll,
     emojiFor: (d) => d.emoji || suggestEmoji(d.name, d.category), suggestEmoji,
     overdraft: () => S.settings.overdraft_cents,
     admins, adminCreate, adminPatch, setMyCode,

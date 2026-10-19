@@ -681,3 +681,10 @@ input { -webkit-user-select: text; user-select: text; }
 #v-kiosk .lamp.flicker-1 .bulb, #v-kiosk .lamp.flicker-1 .cone { animation: buzz-1 .7s steps(1, end) both; }
 #v-kiosk .lamp.flicker-2 .bulb, #v-kiosk .lamp.flicker-2 .cone { animation: buzz-2 1.2s steps(1, end) both; }
 #v-kiosk .lamp.flicker-3 .bulb, #v-kiosk .lamp.flicker-3 .cone { animation: buzz-3 .9s steps(1, end) both; }
+
+/* Réglages : nom du fichier de sauvegarde */
+#v-admin .file-name { flex-direction: column; align-items: flex-start; gap: 4px; width: 100%; }
+#v-admin .file-field { display: flex; align-items: center; width: 100%; }
+#v-admin .file-field input { flex: 1; border-radius: 10px 0 0 10px; }
+#v-admin .file-field .ext { padding: 0 12px; min-height: 42px; display: grid; place-items: center; border: 1px solid var(--line-2);
+  border-left: 0; border-radius: 0 10px 10px 0; background: var(--raise); color: var(--dim); }

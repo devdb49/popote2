@@ -7,7 +7,7 @@ installée.
 ## Ce que fait la borne
 
 **Deux sections indépendantes** (ex. Section 1 et Section 2) partagent la tablette. L'accueil propose le choix de
-la section ; chacune a ses propres responsables, produits, tarifs, stocks, clients, journal, horaires et
+la section ; chacune a son propre code responsable, ses produits, tarifs, stocks, clients, journal, horaires et
 sauvegarde. Les données existantes avant la version 3.0.0 deviennent la Section 1. Le nom de chaque section se
 change dans *Réglages*. Après une commande, ou en cas d'inactivité, la borne revient toujours à l'écran des tarifs de la
 section en cours ; le bouton « Changer de section » ramène au choix des sections.
@@ -18,7 +18,7 @@ A et B qui alternent chaque jour (A, B, A, B… sans tenir compte des semaines),
 on indique simplement si aujourd'hui est un jour A ou B. Fermé : le bouton Commander
 affiche « Fermé » ; on peut toujours consulter les tarifs et créer une carte. Par défaut : Ouvert.
 
-Les noms des usagers et des responsables sont saisis, affichés et enregistrés en MAJUSCULES
+Les identifiants des clients sont saisis, affichés et enregistrés en MAJUSCULES
 (la connexion ne tient compte ni des majuscules ni des accents).
 
 - **Créer ma carte** : nom + code à 6 chiffres saisi deux fois (les codes trop simples sont refusés).
@@ -30,7 +30,9 @@ Les noms des usagers et des responsables sont saisis, affichés et enregistrés 
 
 ## Gestion par les responsables (sur la tablette)
 
-Bouton **Responsable** en bas à droite de l'accueil (ou appui long de 3 s sur le titre) → identifiant, puis code responsable à 8 chiffres au pavé numérique (sans clavier).
+Bouton **Responsable** en bas à droite de l'accueil (ou appui long de 3 s sur le titre) → code responsable à 8 chiffres au pavé numérique (sans identifiant ni clavier).
+Un seul responsable par section : le code est partagé par les personnes qui gèrent la section ;
+5 codes faux bloquent la gestion 10 minutes.
 
 - *Ardoises* : les cartes **à valider** apparaissent en tête de liste et dans le résumé.
   Dans la fiche : **Valider la carte**, ou **Refuser et supprimer** (le nom redevient libre).
@@ -43,7 +45,7 @@ Bouton **Responsable** en bas à droite de l'accueil (ou appui long de 3 s sur l
   de commander. Les produits créés avant cette version sont classés automatiquement d'après leur nom : vérifiez-les.
 - *Journal* : toutes les opérations, annulation d'une commande ou d'un paiement (ardoise et stock corrigés),
   export CSV pour Excel.
-- *Responsables* : plusieurs comptes, chacun avec son code à 8 chiffres (saisi au pavé numérique).
+- *Réglages → Code responsable* : changer le code de la section (au pavé numérique).
 - *Réglages* : découvert autorisé (0 € par défaut), sauvegarde et restauration, version de l'application,
   et **Remise à zéro** : *Réinitialiser* (efface cartes, soldes et journal ; garde produits, stocks,
   responsables, réglages) ou *Tout effacer* (retour à la première mise en route). Chaque action demande
@@ -51,7 +53,7 @@ Bouton **Responsable** en bas à droite de l'accueil (ou appui long de 3 s sur l
 - Images des produits : choisies dans une grille (bouton à gauche du nom), ou automatiques d'après le nom.
 - La gestion se referme seule après 5 minutes sans action, et avec « Revenir à la borne ».
 
-Au tout premier lancement, la borne demande de créer le compte du premier responsable.
+Quand on entre pour la première fois dans une section, la borne demande de choisir son code responsable.
 
 ## Installer sur l'iPad
 
@@ -65,7 +67,7 @@ Le plus simple, gratuit, avec GitHub Pages :
    `https://<compte>.github.io/<depot>/`.
 3. Sur l'iPad, ouvrir cette adresse dans **Safari**, puis **Partager → Sur l'écran d'accueil**.
 4. Lancer **Popote depuis l'icône** (plein écran, et les données sont protégées contre l'effacement
-   automatique de Safari). Créer le premier responsable, puis les boissons.
+   automatique de Safari). Choisir la section, son code responsable, puis ajouter les produits.
 
 N'importe quel hébergement de fichiers statiques en HTTPS convient (Netlify, Cloudflare Pages…).
 
@@ -88,10 +90,11 @@ N'importe quel hébergement de fichiers statiques en HTTPS convient (Netlify, Cl
 Les données n'existent que dans cet iPad. **Chaque section se sauvegarde séparément** : dans la gestion de la
 section, *Réglages → Créer une sauvegarde* ouvre la
 feuille de partage : enregistrer dans Fichiers / iCloud Drive, AirDrop, ou s'envoyer par e-mail.
+Le nom du fichier est proposé (popote-<section>-<date>) et peut être changé avant d'enregistrer.
 Une alerte apparaît dans la gestion si la dernière sauvegarde date de plus de 7 jours.
 
 Pour changer d'iPad : installer la borne sur le nouvel iPad, créer un compte provisoire,
-puis *Sauvegarde → Restaurer*. Les comptes responsables de la sauvegarde remplacent le compte provisoire.
+puis *Sauvegarde → Restaurer*. Le code responsable de la sauvegarde remplace le code provisoire.
 
 ## Mettre à jour l'application
 
@@ -118,7 +121,7 @@ Les données ne sont pas touchées.
 | `index.html` | écrans de la borne et de la gestion |
 | `store.js` | données locales (IndexedDB), règles métier, sauvegarde |
 | `kiosk.js` | borne : identification, création de carte, commande, accès responsable |
-| `admin.js` | gestion : ardoises, boissons, journal, responsables, sauvegarde |
+| `admin.js` | gestion : ardoises, produits, journal, réglages, sauvegarde |
 | `boot.js`, `sw.js` | démarrage et fonctionnement hors ligne |
 | `theme.css`, `common.css`, `fonts/`, icônes, `manifest.webmanifest` | thème sombre, polices embarquées, installation sur l'écran d'accueil |
 
