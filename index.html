@@ -277,13 +277,25 @@
               <span class="alt-tag">Jour A</span>
               <label class="inline">De <input type="time" name="a_open" aria-label="Jour A : ouverture"></label>
               <label class="inline">à <input type="time" name="a_close" aria-label="Jour A : fermeture"></label>
+              <label class="check sm"><input type="checkbox" name="a_split"> 2 plages</label>
               <label class="check sm"><input type="checkbox" name="a_closed"> Fermé</label>
+            </div>
+            <div class="alt-row alt-row2" id="a-range2">
+              <span class="alt-tag ghost" aria-hidden="true">puis</span>
+              <label class="inline">De <input type="time" name="a_open2" aria-label="Jour A : 2e ouverture"></label>
+              <label class="inline">à <input type="time" name="a_close2" aria-label="Jour A : 2e fermeture"></label>
             </div>
             <div class="alt-row">
               <span class="alt-tag b">Jour B</span>
               <label class="inline">De <input type="time" name="b_open" aria-label="Jour B : ouverture"></label>
               <label class="inline">à <input type="time" name="b_close" aria-label="Jour B : fermeture"></label>
+              <label class="check sm"><input type="checkbox" name="b_split"> 2 plages</label>
               <label class="check sm"><input type="checkbox" name="b_closed"> Fermé</label>
+            </div>
+            <div class="alt-row alt-row2" id="b-range2">
+              <span class="alt-tag ghost" aria-hidden="true">puis</span>
+              <label class="inline">De <input type="time" name="b_open2" aria-label="Jour B : 2e ouverture"></label>
+              <label class="inline">à <input type="time" name="b_close2" aria-label="Jour B : 2e fermeture"></label>
             </div>
             <div class="alt-row">
               <span class="field-title">Aujourd'hui, c'est</span>
@@ -297,7 +309,8 @@
           <button class="btn btn-primary" type="submit">Enregistrer</button>
         </form>
         <p class="muted">Fermé : on peut voir les tarifs et créer une carte, mais pas commander.
-           Les horaires peuvent passer minuit (ex. 20:00 à 01:00).</p>
+           Les horaires peuvent passer minuit (ex. 20:00 à 01:00).
+           Un jour sur deux : chaque jour peut avoir 2 plages (ex. 11:30 à 13:30 puis 18:00 à 21:30).</p>
       </div>
       <div class="card">
         <h3>Commandes et solde</h3>

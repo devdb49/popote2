@@ -430,9 +430,14 @@ const Admin = (() => {
     const hf = $("hours-form").elements;
     const H = st.hours;
     hf.mode.value = H.mode; hf.open.value = H.open; hf.close.value = H.close;
-    const a = H.a || { open: "18:00", close: "21:30", closed: false }, b = H.b || { open: "12:00", close: "14:00", closed: false };
-    hf.a_open.value = a.open; hf.a_close.value = a.close; hf.a_closed.checked = a.closed;
-    hf.b_open.value = b.open; hf.b_close.value = b.close; hf.b_closed.checked = b.closed;
+    const DEF = { a: { open: "18:00", close: "21:30", open2: "22:00", close2: "23:30" },
+                  b: { open: "12:00", close: "14:00", open2: "18:00", close2: "21:30" } };
+    for (const k of ["a", "b"]) {
+      const sl = { ...DEF[k], closed: false, split: false, ...(H[k] || {}) };
+      hf[k + "_open"].value = sl.open; hf[k + "_close"].value = sl.close;
+      hf[k + "_open2"].value = sl.open2 || DEF[k].open2; hf[k + "_close2"].value = sl.close2 || DEF[k].close2;
+      hf[k + "_closed"].checked = !!sl.closed; hf[k + "_split"].checked = !!sl.split;
+    }
     hf.today.value = (H.mode === "alternate" && Store.todaySlot()?.label) || "A";
     syncHoursForm();
     $("overdraft-form").elements.amount.value = (st.overdraft_cents / 100).toFixed(2).replace(".", ",");
@@ -457,9 +462,15 @@ const Admin = (() => {
     const f = $("hours-form").elements;
     $("hours-times").hidden = f.mode.value !== "schedule";
     $("hours-alt").hidden = f.mode.value !== "alternate";
-    for (const k of ["a", "b"]) f[k + "_open"].disabled = f[k + "_close"].disabled = f[k + "_closed"].checked;
+    for (const k of ["a", "b"]) {
+      const closed = f[k + "_closed"].checked;
+      f[k + "_open"].disabled = f[k + "_close"].disabled = f[k + "_split"].disabled = closed;
+      $(k + "-range2").hidden = closed || !f[k + "_split"].checked;
+    }
     // Aperçu des 4 prochains jours
-    const slot = (k) => f[k + "_closed"].checked ? "fermé" : `${f[k + "_open"].value} – ${f[k + "_close"].value}`;
+    const slot = (k) => f[k + "_closed"].checked ? "fermé"
+      : `${f[k + "_open"].value} – ${f[k + "_close"].value}`
+        + (f[k + "_split"].checked ? ` et ${f[k + "_open2"].value} – ${f[k + "_close2"].value}` : "");
     const days = ["aujourd'hui", "demain", "après-demain", "dans 3 jours"];
     const first = f.today.value || "A";
     $("alt-preview").textContent = days.map((d, i) => {
@@ -467,6 +478,8 @@ const Admin = (() => {
       return `${d} : jour ${k.toUpperCase()} (${slot(k)})`;
     }).join(" ; ");
   }
+  const daySlot = (f, k) => ({ open: f[k + "_open"].value, close: f[k + "_close"].value, closed: f[k + "_closed"].checked,
+                               split: f[k + "_split"].checked, open2: f[k + "_open2"].value, close2: f[k + "_close2"].value });
   $("hours-form").addEventListener("change", syncHoursForm);
   $("hours-form").addEventListener("submit", async (ev) => {
     ev.preventDefault();
@@ -476,8 +489,7 @@ const Admin = (() => {
       const mode = f.mode.value;
       await call(() => Store.setHours({
         mode, open: f.open.value, close: f.close.value,
-        a: { open: f.a_open.value, close: f.a_close.value, closed: f.a_closed.checked },
-        b: { open: f.b_open.value, close: f.b_close.value, closed: f.b_closed.checked },
+        a: daySlot(f, "a"), b: daySlot(f, "b"),
         todayIs: f.today.value || "A",
       }));
       toast(mode === "open" ? "Popote ouverte" : mode === "closed" ? "Popote fermée"

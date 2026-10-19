@@ -117,14 +117,36 @@ const Store = (() => {
   const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   const fromYmd = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
 
-  // Horaire d'un jour donné : { open, close, closed, label } (label "A"/"B" en alternance)
+  // Horaire d'un jour donné : { open, close, closed, split, open2, close2, label, ranges }
+  // (label "A"/"B" en alternance ; ranges : les plages d'ouverture du jour, 0, 1 ou 2)
   function slotFor(hours, date) {
+    let sl;
     if (hours.mode === "alternate") {
       const diff = dayNum(date) - dayNum(fromYmd(hours.anchor));
       const isA = ((diff % 2) + 2) % 2 === 0;
-      return { ...(isA ? hours.a : hours.b), label: isA ? "A" : "B" };
-    }
-    return { open: hours.open, close: hours.close, closed: false, label: null };
+      sl = { ...(isA ? hours.a : hours.b), label: isA ? "A" : "B" };
+    } else sl = { open: hours.open, close: hours.close, closed: false, label: null };
+    sl.ranges = rangesOf(sl);
+    return sl;
+  }
+  function rangesOf(sl) {
+    if (!sl || sl.closed) return [];
+    const r = [{ open: sl.open, close: sl.close }];
+    if (sl.split && sl.open2 && sl.close2) r.push({ open: sl.open2, close: sl.close2 });
+    return r;
+  }
+  const wraps = (r) => toMin(r.close) < toMin(r.open);                 // passe minuit
+  const inRange = (r, t) => {
+    const o = toMin(r.open), c = toMin(r.close);
+    if (o === c) return true;
+    return o < c ? t >= o && t < c : t >= o;
+  };
+  const dayOffset = (date, k) => new Date(date.getFullYear(), date.getMonth(), date.getDate() + k);
+  // Plage en cours à cet instant (celle de la veille si elle passe minuit), ou null
+  function currentRange(hours, date) {
+    const t = date.getHours() * 60 + date.getMinutes();
+    const y = slotFor(hours, dayOffset(date, -1)).ranges.find((r) => wraps(r) && t < toMin(r.close));
+    return y || slotFor(hours, date).ranges.find((r) => inRange(r, t)) || null;
   }
 
   // Ouvert à cet instant ? Une plage peut passer minuit (ex. 20:00 → 01:00) : après minuit, c'est
@@ -133,37 +155,26 @@ const Store = (() => {
     const mode = hours?.mode || (hours?.enabled ? "schedule" : "open");
     if (mode === "open") return true;
     if (mode === "closed") return false;
-    hours = { ...hours, mode };
-    const t = date.getHours() * 60 + date.getMinutes();
-    const today = slotFor(hours, date);
-    const yest = slotFor(hours, new Date(date.getFullYear(), date.getMonth(), date.getDate() - 1));
-    if (!yest.closed && toMin(yest.close) < toMin(yest.open) && t < toMin(yest.close)) return true;
-    if (today.closed) return false;
-    const o = toMin(today.open), c = toMin(today.close);
-    if (o === c) return true;
-    return o < c ? t >= o && t < c : t >= o;
+    return !!currentRange({ ...hours, mode }, date);
   }
   // Texte d'état pour l'accueil : { open, text, hint }
   const hh = (t) => t.replace(":", " h ");
   const DAY_WORD = ["", "demain", "après-demain"];
+  const rangesText = (rs) => rs.map((r) => `de ${hh(r.open)} à ${hh(r.close)}`).join(" et ");
   function describeHours(hours, date = new Date()) {
     const mode = hours?.mode || (hours?.enabled ? "schedule" : "open");
     if (mode === "open") return { open: true, text: "Ouvert", hint: "" };
     if (mode === "closed") return { open: false, text: "Fermé", hint: "La popote est fermée pour le moment." };
     hours = { ...hours, mode };
     const t = date.getHours() * 60 + date.getMinutes();
-    if (isOpenAt(hours, date)) {
-      const yest = slotFor(hours, new Date(date.getFullYear(), date.getMonth(), date.getDate() - 1));
-      const fromYest = !yest.closed && toMin(yest.close) < toMin(yest.open) && t < toMin(yest.close);
-      const until = fromYest ? yest.close : slotFor(hours, date).close;
-      return { open: true, text: `Ouvert jusqu'à ${hh(until)}`, hint: "" };
-    }
+    const cur = currentRange(hours, date);
+    if (cur) return { open: true, text: `Ouvert jusqu'à ${hh(cur.close)}`, hint: "" };
     for (let k = 0; k <= 2; k++) {                     // prochaine ouverture
-      const sl = slotFor(hours, new Date(date.getFullYear(), date.getMonth(), date.getDate() + k));
-      if (sl.closed || (k === 0 && toMin(sl.open) <= t)) continue;
-      const when = k === 0 ? `à ${hh(sl.open)}` : `${DAY_WORD[k]} à ${hh(sl.open)}`;
+      const next = slotFor(hours, dayOffset(date, k)).ranges.filter((r) => k > 0 || toMin(r.open) > t);
+      if (!next.length) continue;
+      const when = k === 0 ? `à ${hh(next[0].open)}` : `${DAY_WORD[k]} à ${hh(next[0].open)}`;
       return { open: false, text: `Fermé, ouverture ${when}`,
-               hint: `Prochaines commandes ${k === 0 ? "aujourd'hui" : DAY_WORD[k]} de ${hh(sl.open)} à ${hh(sl.close)}.` };
+               hint: `Prochaines commandes ${k === 0 ? "aujourd'hui" : DAY_WORD[k]} ${rangesText(next)}.` };
     }
     return { open: false, text: "Fermé", hint: "La popote est fermée pour le moment." };
   }
@@ -394,9 +405,8 @@ const Store = (() => {
       if (!d) fail("Produit indisponible", 404);
       if (d.stock < qty) fail(`Stock insuffisant (${d.stock} restant(s))`, 409);
       if (!isOpenAt(st.settings.hours)) {
-        const h = st.settings.hours;
-        const sl = h.mode === "schedule" || h.mode === "alternate" ? slotFor(h, new Date()) : null;
-        fail(sl && !sl.closed ? `La popote est fermée. Commandes de ${sl.open} à ${sl.close}.` : "La popote est fermée.", 423);
+        const d = describeHours(st.settings.hours);
+        fail(d.hint.startsWith("Prochaines") ? `La popote est fermée. ${d.hint}` : "La popote est fermée.", 423);
       }
       const amount = d.price_cents * qty;
       // Pas de commande au-delà de ce qu'il reste sur la carte (+ découvert autorisé éventuel)
@@ -766,7 +776,7 @@ const Store = (() => {
   // ---------- réglages
   function settings() { requireAdmin(); return { ...clone(S.settings), section_name: S.meta.section_name }; }
 
-  // a, b : { open, close, closed } ; todayIs : "A" ou "B" (aujourd'hui est un jour A ou B)
+  // a, b : { open, close, closed, split, open2, close2 } (split : deuxième plage le même jour) ; todayIs : "A" ou "B" (aujourd'hui est un jour A ou B)
   function setHours({ mode, open, close, a, b, todayIs }) {
     requireAdmin();
     if (!MODES.includes(mode)) fail("Mode d'ouverture invalide", 422);
@@ -775,6 +785,11 @@ const Store = (() => {
       if (sl.closed) return;
       if (!re.test(sl.open) || !re.test(sl.close)) fail(`Horaires ${label} invalides (format 18:00)`, 422);
       if (sl.open === sl.close) fail(`${label} : l'ouverture et la fermeture doivent être différentes`, 422);
+      if (!sl.split) return;
+      if (!re.test(sl.open2) || !re.test(sl.close2)) fail(`${label} : horaires de la 2e plage invalides (format 18:00)`, 422);
+      if (sl.open2 === sl.close2) fail(`${label} : la 2e plage doit avoir une ouverture et une fermeture différentes`, 422);
+      if (toMin(sl.close) < toMin(sl.open)) fail(`${label} : avec deux plages, la 1re doit se terminer avant minuit`, 422);
+      if (toMin(sl.open2) < toMin(sl.close)) fail(`${label} : la 2e plage doit commencer après la fin de la 1re (${sl.close})`, 422);
     };
     if (mode === "schedule") checkSlot({ open, close }, "");
     if (mode === "alternate") {
@@ -785,17 +800,18 @@ const Store = (() => {
     return mutate((st, log) => {
       const prev = st.settings.hours;
       const slot = (sl, def) => ({ open: re.test(sl?.open) ? sl.open : def.open, close: re.test(sl?.close) ? sl.close : def.close,
-                                   closed: !!sl?.closed });
+                                   closed: !!sl?.closed, split: !!sl?.split && !sl?.closed,
+                                   open2: re.test(sl?.open2) ? sl.open2 : def.open2, close2: re.test(sl?.close2) ? sl.close2 : def.close2 });
       const today = new Date();
       const anchor = todayIs === "B" ? ymd(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1)) : ymd(today);
       st.settings.hours = {
         mode,
         open: re.test(open) ? open : prev.open, close: re.test(close) ? close : prev.close,
-        a: slot(a || prev.a, { open: "18:00", close: "21:30" }),
-        b: slot(b || prev.b, { open: "12:00", close: "14:00" }),
+        a: slot(a || prev.a, { open: "18:00", close: "21:30", open2: "22:00", close2: "23:30" }),
+        b: slot(b || prev.b, { open: "12:00", close: "14:00", open2: "18:00", close2: "21:30" }),
         anchor: mode === "alternate" ? anchor : (prev.anchor || ymd(today)),
       };
-      const h = st.settings.hours, txt = (sl) => (sl.closed ? "fermé" : `${sl.open} – ${sl.close}`);
+      const h = st.settings.hours, txt = (sl) => (sl.closed ? "fermé" : rangesOf(sl).map((r) => `${r.open} – ${r.close}`).join(" et "));
       log({ kind: "setting", note: mode === "open" ? "Popote ouverte (manuel)"
                                  : mode === "closed" ? "Popote fermée (manuel)"
                                  : mode === "schedule" ? `Ouverture selon les horaires : ${open} – ${close}`

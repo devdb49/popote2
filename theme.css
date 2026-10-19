@@ -688,3 +688,8 @@ input { -webkit-user-select: text; user-select: text; }
 #v-admin .file-field input { flex: 1; border-radius: 10px 0 0 10px; }
 #v-admin .file-field .ext { padding: 0 12px; min-height: 42px; display: grid; place-items: center; border: 1px solid var(--line-2);
   border-left: 0; border-radius: 0 10px 10px 0; background: var(--raise); color: var(--dim); }
+
+/* Un jour sur deux : 2e plage du même jour */
+#v-admin .alt-row2 { margin-top: -4px; }
+#v-admin .alt-row2[hidden] { display: none; }
+#v-admin .alt-tag.ghost { background: transparent; color: var(--dim); font-weight: 600; }

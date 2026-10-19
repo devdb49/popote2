@@ -14,7 +14,8 @@ section en cours ; le bouton « Changer de section » ramène au choix des secti
 
 **Ouverture des commandes** (par section, dans *Réglages*) : **Ouvert** ou **Fermé** au choix du responsable,
 ou **Horaires** (ex. 18:00 à 21:30, une plage après minuit est acceptée), ou **Un jour sur deux** : deux horaires
-A et B qui alternent chaque jour (A, B, A, B… sans tenir compte des semaines), chacun pouvant être « fermé » ;
+A et B qui alternent chaque jour (A, B, A, B… sans tenir compte des semaines), chacun pouvant avoir
+**deux plages** dans la journée (case « 2 plages », ex. 11:30 à 13:30 puis 18:00 à 21:30) ou être « fermé » ;
 on indique simplement si aujourd'hui est un jour A ou B. Fermé : le bouton Commander
 affiche « Fermé » ; on peut toujours consulter les tarifs et créer une carte. Par défaut : Ouvert.
 
