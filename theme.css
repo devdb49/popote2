@@ -754,3 +754,14 @@ input { -webkit-user-select: text; user-select: text; }
   #v-admin .acc-summary { grid-template-columns: 1fr 1fr; }
   #v-admin .compta-cols { grid-template-columns: 1fr; }
 }
+
+/* Bar fermé : softs et divers seulement */
+#v-kiosk .sec-status.limited { color: var(--amber-hi); }
+#v-kiosk .section-card.limited .sc-status { color: var(--amber-hi); }
+#v-kiosk .board .no-sale li { color: var(--faint); }
+#v-kiosk .board .no-sale .b-price { color: var(--faint); }
+#v-kiosk .board .cat-off { font-family: var(--text); font-size: 13px; font-weight: 500; color: var(--dim); text-transform: none; letter-spacing: 0; }
+#v-admin .after-close { display: flex; gap: 10px; align-items: flex-start; max-width: 640px; color: var(--ink-2); font-size: 15px; line-height: 1.45; cursor: pointer; }
+#v-admin .after-close input { width: 22px; height: 22px; min-height: 0; margin-top: 1px; flex: none; accent-color: var(--amber); }
+#v-admin .after-close span { font-weight: 400; }
+#v-admin .after-close b { font-weight: 700; color: var(--ink); }

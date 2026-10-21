@@ -635,6 +635,7 @@ const Admin = (() => {
       hf[k + "_closed"].checked = !!sl.closed; hf[k + "_split"].checked = !!sl.split;
     }
     hf.today.value = (H.mode === "alternate" && Store.todaySlot()?.label) || "A";
+    $("after-close-soft").checked = !!st.after_close_soft;
     syncHoursForm();
     $("overdraft-form").elements.amount.value = (st.overdraft_cents / 100).toFixed(2).replace(".", ",");
     const i = await call(Store.storageInfo);
@@ -677,6 +678,14 @@ const Admin = (() => {
   const daySlot = (f, k) => ({ open: f[k + "_open"].value, close: f[k + "_close"].value, closed: f[k + "_closed"].checked,
                                split: f[k + "_split"].checked, open2: f[k + "_open2"].value, close2: f[k + "_close2"].value });
   $("hours-form").addEventListener("change", syncHoursForm);
+  $("after-close-soft").addEventListener("change", async (ev) => {
+    const on = ev.target.checked;
+    $("backup-error").textContent = "";
+    try {
+      await call(() => Store.setAfterCloseSoft(on));
+      toast(on ? "Après la fermeture : softs et divers en vente, sans alcool" : "Après la fermeture : plus aucune vente");
+    } catch (e) { ev.target.checked = !on; $("backup-error").textContent = e.message; }
+  });
   $("hours-form").addEventListener("submit", async (ev) => {
     ev.preventDefault();
     const f = ev.target.elements;

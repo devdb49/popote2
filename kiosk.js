@@ -37,6 +37,8 @@ const Kiosk = (() => {
   function renderBoard() {
     const ul = $("board");
     ul.replaceChildren();
+    const softOnly = !!Store.status().soft_only;
+    ul.dataset.softOnly = String(softOnly);
     let cat = null, group = null;
     for (const d of state.drinks) {
       if (d.category !== cat) {               // rubrique : Bières / Softs / Divers
@@ -47,6 +49,11 @@ const Kiosk = (() => {
         const h = document.createElement("p");
         h.className = "cat-head";
         h.textContent = Store.CATEGORIES.find((c) => c.id === cat)?.label || "";
+        if (softOnly && Store.isAlcohol(d)) {              // bar fermé : pas d'alcool
+          g.classList.add("no-sale");
+          const n = document.createElement("span"); n.className = "cat-off"; n.textContent = "plus servies après la fermeture";
+          h.append(" ", n);
+        }
         group = document.createElement("ul");
         g.append(h, group);
         ul.appendChild(g);
@@ -77,7 +84,7 @@ const Kiosk = (() => {
     const list = await Store.sectionsOverview();
     $("section-choices").replaceChildren(...list.map((sec) => {
       const b = document.createElement("button");
-      b.className = "section-card" + (sec.configured && !sec.open ? " closed" : "");
+      b.className = "section-card" + (sec.configured && !sec.open ? (sec.status.soft_only ? " limited" : " closed") : "");
       b.dataset.sec = sec.id;
       b.innerHTML = '<span class="sc-name"></span><span class="sc-status"></span>';
       b.querySelector(".sc-name").textContent = "#" + sec.name;
@@ -102,15 +109,18 @@ const Kiosk = (() => {
 
   // Statut de la section sur son accueil : ouvert / fermé (pas de commande hors horaires)
   function renderHomeStatus() {
-    const st = Store.status(), open = st.open;
+    const st = Store.status(), open = st.open, sell = open || st.soft_only;
     $("sec-name").textContent = "#" + Store.sectionName();
     $("sec-status").textContent = st.text;
-    $("sec-status").classList.toggle("closed", !open);
-    $("btn-order").disabled = !open;
-    $("btn-order").textContent = open ? "Commander" : "Fermé";
+    $("sec-status").classList.toggle("closed", !sell);
+    $("sec-status").classList.toggle("limited", st.soft_only);
+    $("btn-order").disabled = !sell;
+    $("btn-order").textContent = sell ? "Commander" : "Fermé";
     $("home-hint").textContent = open
       ? "Chaque consommation est déduite de votre carte. Rechargez-la auprès d'un responsable."
+      : st.soft_only ? st.hint
       : `${st.hint} Vous pouvez consulter les tarifs et créer votre carte.`;
+    if ($("board").dataset.softOnly !== String(st.soft_only)) renderBoard();
   }
 
   // ---- Identification / création (clients et responsables) -------------------
@@ -268,6 +278,10 @@ const Kiosk = (() => {
     $("hello").textContent = "Bonjour " + state.session.name;
     renderSlate($("slate"), state.session.balance_cents);
     show("menu");
+    state.drinks = Store.kioskDrinks();
+    // bar fermé : le menu s'ouvre sur une catégorie encore en vente (les bières restent visibles, grisées)
+    const sellable = (id) => state.drinks.some((d) => d.category === id && Store.canSell(d));
+    if (!sellable(state.cat)) state.cat = Store.CATEGORIES.find((c) => sellable(c.id))?.id || state.cat;
     loadDrinks();
     renderDrinks();
   }
@@ -296,20 +310,21 @@ const Kiosk = (() => {
     const box = $("drinks");
     box.replaceChildren();
     const avail = available();
-    const affordable = state.drinks.some((d) => d.stock > 0 && d.price_cents <= avail);
+    const affordable = state.drinks.some((d) => d.stock > 0 && d.price_cents <= avail && Store.canSell(d));
     $("menu-note").hidden = affordable || !state.drinks.length;
     for (const d of state.drinks.filter((x) => x.category === state.cat)) {
       const b = document.createElement("button");
-      const tooExpensive = d.price_cents > avail;
-      b.className = "drink" + (tooExpensive && d.stock > 0 ? " too-expensive" : "");
+      const tooExpensive = d.price_cents > avail, offHours = !Store.canSell(d);
+      b.className = "drink" + (tooExpensive && d.stock > 0 && !offHours ? " too-expensive" : "") + (offHours ? " too-expensive" : "");
       b.dataset.cat = d.category;
-      b.disabled = d.stock <= 0 || tooExpensive;
+      b.disabled = d.stock <= 0 || tooExpensive || offHours;
       b.innerHTML = '<span class="d-emoji"></span><span><span class="d-name"></span><br>' +
                     '<span class="d-price num"></span></span><span class="d-left"></span>';
       b.querySelector(".d-emoji").textContent = Store.emojiFor(d);
       b.querySelector(".d-name").textContent = d.name;
       b.querySelector(".d-price").textContent = d.stock > 0 ? euro(d.price_cents) : "Épuisé";
-      if (d.stock > 0 && tooExpensive) b.querySelector(".d-left").textContent = "solde insuffisant";
+      if (d.stock > 0 && offHours) b.querySelector(".d-left").textContent = "plus servi";
+      else if (d.stock > 0 && tooExpensive) b.querySelector(".d-left").textContent = "solde insuffisant";
       else if (d.stock > 0 && d.stock <= 3) b.querySelector(".d-left").textContent = "plus que " + d.stock;
       b.addEventListener("click", () => openSheet(d));
       box.appendChild(b);

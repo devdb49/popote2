@@ -108,7 +108,7 @@ const Store = (() => {
       }
       const hours = st?.settings?.hours || defaultHours();
       out.push({ id: sec.id, name: st?.meta?.section_name || sec.defaultName,
-                 configured: !!st?.admins?.length, hours, open: isOpenAt(hours), status: describeHours(hours) });
+                 configured: !!st?.admins?.length, hours, open: isOpenAt(hours), status: saleStatus(st?.settings || { hours }) });
     }
     return out;
   }
@@ -180,6 +180,20 @@ const Store = (() => {
     }
     return { open: false, text: "Fermé", hint: "La popote est fermée pour le moment." };
   }
+
+  // Après la fermeture, on peut continuer à vendre les softs et les divers, mais pas l'alcool
+  const ALCOHOL_CATS = ["biere"];
+  const isAlcohol = (d) => ALCOHOL_CATS.includes(d.category);
+  // Seulement hors horaires (modes Horaires / Un jour sur deux) : « Fermé » arrête toutes les ventes
+  const softAfterHours = (settings) => !!settings?.after_close_soft && ["schedule", "alternate"].includes(settings?.hours?.mode);
+  function saleStatus(settings, date = new Date()) {
+    const st = describeHours(settings?.hours, date);
+    if (st.open || !softAfterHours(settings)) return { ...st, soft_only: false };
+    return { open: false, soft_only: true, text: st.text.replace(/^Fermé/, "Fermé au bar"),
+             hint: "Plus d'alcool : les softs et les divers restent en vente."
+               + (st.hint.startsWith("Prochaines commandes") ? st.hint.replace("Prochaines commandes", " Bières à nouveau servies") : "") };
+  }
+  const canSell = (d, settings = S.settings) => isOpenAt(settings.hours) || (softAfterHours(settings) && !isAlcohol(d));
 
   const todaySlot = (date = new Date()) => {
     const h = S.settings.hours;
@@ -410,9 +424,10 @@ const Store = (() => {
       const d = st.drinks.find((x) => x.id === drinkId && x.active);
       if (!d) fail("Produit indisponible", 404);
       if (d.stock < qty) fail(`Stock insuffisant (${d.stock} restant(s))`, 409);
-      if (!isOpenAt(st.settings.hours)) {
-        const d = describeHours(st.settings.hours);
-        fail(d.hint.startsWith("Prochaines") ? `La popote est fermée. ${d.hint}` : "La popote est fermée.", 423);
+      if (!canSell(d, st.settings)) {
+        if (softAfterHours(st.settings)) fail("Plus d'alcool après la fermeture : seuls les softs et les divers sont servis.", 423);
+        const h = describeHours(st.settings.hours);
+        fail(h.hint.startsWith("Prochaines") ? `La popote est fermée. ${h.hint}` : "La popote est fermée.", 423);
       }
       const amount = d.price_cents * qty;
       // Pas de commande au-delà de ce qu'il reste sur la carte (+ découvert autorisé éventuel)
@@ -1091,6 +1106,17 @@ const Store = (() => {
     });
   }
 
+  function setAfterCloseSoft(on) {
+    requireAdmin();
+    return mutate((st, log) => {
+      if (!!st.settings.after_close_soft === !!on) return { ok: true };
+      st.settings.after_close_soft = !!on;
+      log({ kind: "setting", note: on ? "Après la fermeture : vente des softs et des divers (sans alcool)"
+                                      : "Après la fermeture : plus aucune vente" });
+      return { ok: true };
+    });
+  }
+
   // Remplace tout (état + journal) d'un seul bloc
   function replaceAll(st, rows) {
     return new Promise((res, rej) => {
@@ -1201,7 +1227,7 @@ const Store = (() => {
     open, ADMIN_IDLE_MS, CATEGORIES, sectionsOverview,
     sectionId: () => section.id, sectionName: () => S.meta.section_name,
     hours: () => clone(S.settings.hours), isOpenNow, isOpenAt, todaySlot, setHours, setSectionName,
-    describeHours, status: () => describeHours(S.settings.hours),
+    describeHours, status: () => saleStatus(S.settings), canSell: (d) => canSell(d), isAlcohol, setAfterCloseSoft,
     // borne
     kioskDrinks, register, login, order, logout,
     // responsables

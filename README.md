@@ -18,6 +18,9 @@ A et B qui alternent chaque jour (A, B, A, B… sans tenir compte des semaines),
 **deux plages** dans la journée (case « 2 plages », ex. 11:30 à 13:30 puis 18:00 à 21:30) ou être « fermé » ;
 on indique simplement si aujourd'hui est un jour A ou B. Fermé : le bouton Commander
 affiche « Fermé » ; on peut toujours consulter les tarifs et créer une carte. Par défaut : Ouvert.
+Option **Sans alcool après la fermeture** (case dans *Réglages*) : en dehors des horaires (modes
+« Horaires » et « Un jour sur deux »), la borne continue à vendre les **softs** et les **divers** ; les **bières** restent affichées mais grisées
+(« plus servi ») et sont refusées. L'accueil indique alors « Fermé au bar ». En mode « Fermé », plus aucune vente.
 
 Les identifiants des clients sont saisis, affichés et enregistrés en MAJUSCULES
 (la connexion ne tient compte ni des majuscules ni des accents).
