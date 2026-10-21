@@ -73,7 +73,7 @@ const Admin = (() => {
   }
   function close() {
     clearInterval(watch);
-    for (const d of ["user-dlg", "restock-dlg"]) if ($(d).open) $(d).close();
+    for (const d of ["user-dlg", "restock-dlg", "drink-dlg"]) if ($(d).open) $(d).close();
     Store.adminLogout();
     $("v-admin").hidden = true;
     Kiosk.home();
@@ -186,12 +186,19 @@ const Admin = (() => {
   $("pay-all").addEventListener("click", () => {
     $("pay-form").elements.amount.value = (cur.balance_cents / 100).toFixed(2).replace(".", ",");
   });
+  // Liquide → caisse ; chèque, virement, Wero, PayPal → banque (si un compte banque existe). Modifiable.
+  $("pay-method").addEventListener("change", (ev) => {
+    const type = ev.target.value === "Liquide" ? "caisse" : "banque";
+    const acc = Store.accounts().find((a) => a.active && a.type === type);
+    if (acc) $("pay-account").value = acc.id;
+  });
   $("pay-form").addEventListener("submit", (ev) => {
     ev.preventDefault();
     const f = ev.target.elements, c = parseEuro(f.amount.value);
     if (!c || c <= 0) { $("u-error").textContent = "Montant invalide (ex. 12,50)"; return; }
     lastPayAccount = Number(f.account.value) || null;
-    userAction(() => Store.payment(cur.id, c, f.note.value, lastPayAccount), `${euro(c)} crédités sur la carte`);
+    if (!f.method.value) { $("u-error").textContent = "Choisissez le moyen de paiement"; return; }
+    userAction(() => Store.payment(cur.id, c, f.method.value, lastPayAccount), `${euro(c)} crédités sur la carte (${f.method.value.toLowerCase()})`);
   });
   $("adj-form").addEventListener("submit", (ev) => {
     ev.preventDefault();
@@ -299,11 +306,37 @@ const Admin = (() => {
                        title: "Ajoute (ou retire avec -) la quantité saisie" }, "Ajouter"),
         el("button", { class: "btn btn-sm", type: "button", onclick: () => stockOp("set"),
                        title: "Remplace le stock par la quantité comptée" }, "Inventaire"))),
-      el("td", { class: "r" }, el("button", { class: "btn btn-sm", type: "button",
-        onclick: () => save({ active: !d.active }, d.active ? `${d.name} retirée de la borne` : `${d.name} remise sur la borne`) },
-        d.active ? "Retirer" : "Remettre")),
+      el("td", { class: "r" }, el("button", { class: "btn btn-sm", type: "button", onclick: () => askDrink(d, save) },
+        d.active ? "Retirer…" : "Remettre…")),
     );
   }
+
+  // Retirer / remettre ou supprimer définitivement un produit
+  let dd = null;
+  function askDrink(d, save) {
+    dd = { d, save };
+    $("dd-title").textContent = `${Store.emojiFor(d)} ${d.name}`;
+    $("dd-info").textContent = `${euro(d.price_cents)} · ${d.stock} en stock` + (d.active ? "" : " · retiré de la borne");
+    $("dd-toggle-label").textContent = d.active ? "Retirer de la borne" : "Remettre sur la borne";
+    $("dd-toggle-help").textContent = d.active
+      ? "Le produit n'est plus proposé mais reste dans la liste, avec son prix et son stock. Vous pourrez le remettre."
+      : "Le produit est à nouveau proposé sur la borne, avec son prix et son stock.";
+    $("drink-dlg").showModal();
+  }
+  $("dd-cancel").addEventListener("click", () => { dd = null; $("drink-dlg").close(); });
+  $("dd-toggle").addEventListener("click", () => {
+    const { d, save } = dd; dd = null; $("drink-dlg").close();
+    save({ active: !d.active }, d.active ? `${d.name} retiré de la borne` : `${d.name} remis sur la borne`);
+  });
+  $("dd-delete").addEventListener("click", async () => {
+    const { d } = dd;
+    if (!confirm(`Supprimer définitivement « ${d.name} » ?` + (d.stock ? `\nLes ${d.stock} en stock seront retirés.` : "")
+                 + "\nCette action ne peut pas être annulée.")) return;
+    dd = null; $("drink-dlg").close();
+    try { await call(() => Store.drinkDelete(d.id)); toast(`${d.name} supprimé`); }
+    catch (e) { toast(e.message); }
+    quiet(loadDrinks()); quiet(loadStats());
+  });
 
   // Réassort : quantité saisie dans le tableau, coût d'achat dans une petite fenêtre
   let rs = null, lastBuyAccount = null;

@@ -765,3 +765,18 @@ input { -webkit-user-select: text; user-select: text; }
 #v-admin .after-close input { width: 22px; height: 22px; min-height: 0; margin-top: 1px; flex: none; accent-color: var(--amber); }
 #v-admin .after-close span { font-weight: 400; }
 #v-admin .after-close b { font-weight: 700; color: var(--ink); }
+
+/* Retirer / supprimer un produit */
+#v-admin .choice-dlg { width: min(520px, calc(100% - 24px)); }
+#v-admin .choice-dlg h3 { font-family: var(--display); font-weight: 800; font-size: 30px; margin: 0; }
+#v-admin .choice-dlg .muted { margin: 4px 0 16px; }
+#v-admin .choices { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+#v-admin .choice {
+  display: flex; flex-direction: column; gap: 4px; text-align: left; cursor: pointer; font: inherit; color: var(--ink);
+  padding: 14px 16px; border-radius: 14px; border: 1px solid var(--line-2); background: var(--raise);
+}
+#v-admin .choice:hover { background: var(--raise-2); }
+#v-admin .choice b { font-size: 17px; }
+#v-admin .choice span { font-size: 14px; color: var(--dim); line-height: 1.4; }
+#v-admin .choice.danger { border-color: rgba(242, 112, 106, .45); background: rgba(242, 112, 106, .06); }
+#v-admin .choice.danger b { color: var(--bad); }

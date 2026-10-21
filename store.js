@@ -665,6 +665,20 @@ const Store = (() => {
     });
   }
 
+  // Suppression définitive d'un produit : il disparaît de la borne et de la gestion ; son historique reste au journal
+  function drinkDelete(id) {
+    requireAdmin();
+    return mutate((st, log) => {
+      const i = st.drinks.findIndex((x) => x.id === id);
+      if (i < 0) fail("Produit introuvable", 404);
+      const d = st.drinks[i];
+      st.drinks.splice(i, 1);
+      log({ kind: "stock", drink_id: d.id, drink_name: d.name, stock_delta: -d.stock,
+            note: `Produit supprimé définitivement${d.stock ? ` (${d.stock} en stock)` : ""}` });
+      return { ok: true, name: d.name };
+    });
+  }
+
   // cost_cents (facultatif) : prix payé pour un réassort, sorti du compte account_id (comptabilité)
   function drinkStock(id, { delta, set, note = "", cost_cents, account_id }) {
     requireAdmin();
@@ -1233,7 +1247,7 @@ const Store = (() => {
     // responsables
     hasAdmins, createFirstAdmin, adminLogin, adminLogout, currentAdmin, touchAdmin,
     stats, users, userPatch, approveUser, rejectUser, deleteUser, payment, adjust,
-    drinks, drinkCreate, drinkPatch, drinkStock,
+    drinks, drinkCreate, drinkPatch, drinkStock, drinkDelete,
     transactions, cancel, exportTransactions, exportBalances, exportProducts, exportFinances, exportLedger, financeSummary,
     ACCOUNT_TYPES, LEDGER_CATS, accounts, accountingSummary, accountCreate, accountPatch, ledgerAdd, ledgerCancel, ledger,
     backup, defaultBackupName, markBackup, restore, storageInfo, settings, setOverdraft, resetActivity, wipeAll,

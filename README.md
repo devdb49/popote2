@@ -43,11 +43,13 @@ Un seul responsable par section : le code est partagé par les personnes qui gè
   Dans la fiche : **Valider la carte**, ou **Refuser et supprimer** (le nom redevient libre).
   **Supprimer la carte** (bas de la fiche) : la carte disparaît, le nom redevient libre, l'historique reste
   au journal ; une ardoise non réglée est signalée avant suppression puis notée comme effacée.
-  Pour une carte validée : paiement reçu (« Tout régler », et le compte sur lequel l'argent est encaissé), correction avec
+  Pour une carte validée : paiement reçu (« Tout régler », moyen de paiement — Liquide, Chèque, Virement bancaire, Wero,
+  PayPal — et le compte sur lequel l'argent est encaissé), correction avec
   motif, nouveau code, déblocage, désactivation.
 - *Produits* : classés en trois catégories — **Bières**, **Softs** (sans alcool) et **Divers** (chips,
   cacahuètes, saucisson, barres chocolatées…). Ajout avec sa catégorie, changement de catégorie, prix, emoji,
-  réassort, inventaire, retirer/remettre sur la borne. Sur la borne : rubriques sur l'accueil, onglets au moment
+  réassort, inventaire. Le bouton **Retirer…** propose de retirer le produit de la borne (il reste dans la liste,
+  on peut le remettre) ou de le **supprimer définitivement** (son historique reste au journal). Sur la borne : rubriques sur l'accueil, onglets au moment
   de commander. Les produits créés avant cette version sont classés automatiquement d'après leur nom : vérifiez-les.
 - *Journal* : toutes les opérations, annulation d'une commande ou d'un paiement (ardoise et stock corrigés),
   export CSV pour Excel.

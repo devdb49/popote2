@@ -21,6 +21,7 @@
 <div id="v-kiosk">
 <!-- ===================================================== CHOIX DE LA SECTION -->
 <section class="screen" id="s-sections" hidden>
+  <div class="lamp lamp-right" aria-hidden="true"><span class="cord"></span><span class="shade"></span><span class="bulb"></span><span class="cone"></span></div>
   <div class="lamp" aria-hidden="true"><span class="cord"></span><span class="shade"></span><span class="bulb"></span><span class="cone"></span></div>
   <header class="home-head">
     <h1 class="brand">La Popote</h1>
@@ -485,6 +486,20 @@
     <p class="muted version-line">Version de l'application : <span class="app-version"></span></p>
   </section>
 
+  <!-- Retirer / supprimer un produit -->
+  <dialog class="fiche choice-dlg" id="drink-dlg">
+    <h3 id="dd-title"></h3>
+    <p class="muted" id="dd-info"></p>
+    <div class="choices">
+      <button class="choice" type="button" id="dd-toggle">
+        <b id="dd-toggle-label"></b><span id="dd-toggle-help"></span></button>
+      <button class="choice danger" type="button" id="dd-delete">
+        <b>Supprimer définitivement</b><span>Le produit disparaît de la borne et de la liste. Son historique reste au journal.
+          Ne peut pas être annulé.</span></button>
+    </div>
+    <div class="row end"><button class="btn" type="button" id="dd-cancel">Annuler</button></div>
+  </dialog>
+
   <!-- Réassort : coût d'achat -->
   <dialog class="fiche restock-dlg" id="restock-dlg">
   <form id="restock-form" method="dialog" autocomplete="off">
@@ -527,8 +542,18 @@
         <input name="amount" inputmode="decimal" placeholder="Montant €" required class="w-num" aria-label="Montant payé">
         <button type="button" class="btn" id="pay-all">Tout régler</button>
       </div>
-      <input name="note" placeholder="Note (espèces, chèque n°…, virement)" maxlength="200" aria-label="Note">
+      <div class="row">
+      <label class="inline">Paiement par
+        <select name="method" id="pay-method" required aria-label="Moyen de paiement">
+          <option value="" selected disabled>Choisir…</option>
+          <option>Liquide</option>
+          <option>Chèque</option>
+          <option>Virement bancaire</option>
+          <option>Wero</option>
+          <option>PayPal</option>
+        </select></label>
       <label class="inline">Encaissé sur <select name="account" id="pay-account" aria-label="Compte qui reçoit l'argent"></select></label>
+      </div>
       <button class="btn btn-primary" type="submit">Valider le paiement</button>
     </form>
 
