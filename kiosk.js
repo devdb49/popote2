@@ -422,6 +422,7 @@ const Kiosk = (() => {
     tick();
   }
 
+
   // ---- Carte créée, en attente de validation ---------------------------------
   let pendingTimer = null;
   function showPending(name) {
@@ -460,21 +461,23 @@ const Kiosk = (() => {
   $("idle-stay").addEventListener("click", armIdle);
 
   // ---- La lampe de l'écran des tarifs grésille de temps en temps ---------------
-  const homeLamp = document.querySelector("#s-home .lamp");
-  function scheduleFlicker() {
+  // Deux lampes, chacune avec son propre tirage au hasard : elles ne grésillent pas ensemble
+  function scheduleFlicker(lamp) {
     setTimeout(() => {
       if (state.screen === "home" && $("v-admin").hidden && !document.hidden) {
-        homeLamp.classList.remove("flicker-1", "flicker-2", "flicker-3");
-        void homeLamp.offsetWidth;
-        homeLamp.classList.add("flicker-" + (1 + Math.floor(Math.random() * 3)));
+        lamp.classList.remove("flicker-1", "flicker-2", "flicker-3");
+        void lamp.offsetWidth;
+        lamp.classList.add("flicker-" + (1 + Math.floor(Math.random() * 3)));
       }
-      scheduleFlicker();
+      scheduleFlicker(lamp);
     }, 3000 + Math.random() * 11000);   // toutes les 3 à 14 s, au hasard
   }
-  homeLamp.addEventListener("animationend", (e) => {
-    if (e.target.classList.contains("cone")) homeLamp.classList.remove("flicker-1", "flicker-2", "flicker-3");
+  document.querySelectorAll("#s-home .lamp").forEach((lamp) => {
+    lamp.addEventListener("animationend", (e) => {
+      if (e.target.classList.contains("cone")) lamp.classList.remove("flicker-1", "flicker-2", "flicker-3");
+    });
+    scheduleFlicker(lamp);
   });
-  scheduleFlicker();
 
   // ---- Accès responsable : appui long de 3 s sur le titre ---------------------
   let holdT = null;

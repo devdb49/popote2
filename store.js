@@ -37,8 +37,10 @@ const Store = (() => {
   // "alternate" : deux horaires A et B qui alternent chaque jour (A, B, A, B… sans tenir compte des semaines)
   const MODES = ["open", "closed", "schedule", "alternate"];
   const defaultHours = () => ({ mode: "open", open: "18:00", close: "21:30" });
+  const defaultAccount = () => ({ id: 1, name: "Caisse", type: "caisse", active: true, created_at: nowIso() });
   function emptyState() {
-    return { v: 1, seq: { user: 0, drink: 0, admin: 0, tx: 0 }, users: [], drinks: [], admins: [],
+    return { v: 1, seq: { user: 0, drink: 0, admin: 0, tx: 0, account: 1, entry: 0 }, users: [], drinks: [], admins: [],
+             accounts: [defaultAccount()], ledger: [],
              settings: { overdraft_cents: 0, hours: defaultHours() },
              meta: { created_at: nowIso(), last_backup: null, section_name: section.defaultName } };
   }
@@ -207,6 +209,10 @@ const Store = (() => {
     }
     if (!st.meta) { st.meta = { created_at: nowIso(), last_backup: null }; changed = true; }
     if (!st.meta.section_name) { st.meta.section_name = section.defaultName; changed = true; }
+    if (!Array.isArray(st.accounts) || !st.accounts.length) { st.accounts = [defaultAccount()]; changed = true; }
+    if (!Array.isArray(st.ledger)) { st.ledger = []; changed = true; }
+    if (!Number.isInteger(st.seq.account)) { st.seq.account = Math.max(0, ...st.accounts.map((a) => a.id)); changed = true; }
+    if (!Number.isInteger(st.seq.entry)) { st.seq.entry = Math.max(0, ...st.ledger.map((e) => e.id)); changed = true; }
     for (const a of st.admins) {
       const n = upper(a.username);
       if (n !== a.username) { a.username = n; changed = true; }
@@ -501,7 +507,7 @@ const Store = (() => {
     requireAdmin();
     const k = nameKey(q);
     return S.users.filter((u) => u.name_key.includes(k))
-      .sort((a, b) => isApproved(a) - isApproved(b) || b.balance_cents - a.balance_cents || a.name.localeCompare(b.name, "fr"))
+      .sort((a, b) => a.name.localeCompare(b.name, "fr", { sensitivity: "base", numeric: true }))   // ordre alphabétique
       .map((u) => ({ id: u.id, name: u.name, balance_cents: u.balance_cents, active: u.active, approved: isApproved(u),
                      locked: lockedMinutes(u.locked_until) > 0, created_at: u.created_at, last_seen_at: u.last_seen_at }));
   }
@@ -575,20 +581,24 @@ const Store = (() => {
     });
   }
 
-  function money(id, kind, amount, note) {
+  function money(id, kind, amount, note, accountId) {
     requireAdmin();
     if (!Number.isInteger(amount) || Math.abs(amount) > 1_000_000) fail("Montant invalide", 422);
     return mutate((st, log) => {
       const u = st.users.find((x) => x.id === id);
       if (!u) fail("Usager introuvable", 404);
+      const acc = kind === "payment" ? payAccount(st, accountId) : null;
       u.balance_cents += amount;
-      log({ kind, user_id: id, user_name: u.name, amount_cents: amount, note: (note || "").trim() || null });
+      const t = log({ kind, user_id: id, user_name: u.name, amount_cents: amount, note: (note || "").trim() || null });
+      // L'argent reçu entre dans la comptabilité, sur le compte choisi (caisse par défaut)
+      if (acc) addEntry(st, { kind: "in", cat: "recharge", amount_cents: -amount, account_id: acc.id,
+                              label: `Recharge carte ${u.name}`, note: t.note, ref_tx: t.id });
       return { ok: true, balance_cents: u.balance_cents };
     });
   }
-  function payment(id, cents, note) {
+  function payment(id, cents, note, accountId) {
     if (!(cents > 0)) fail("Le montant payé doit être positif", 422);
-    return money(id, "payment", -cents, note);
+    return money(id, "payment", -cents, note, accountId);
   }
   function adjust(id, cents, note) {
     if (!cents || !(note || "").trim()) fail("Montant non nul et motif obligatoires", 422);
@@ -640,19 +650,28 @@ const Store = (() => {
     });
   }
 
-  function drinkStock(id, { delta, set, note = "" }) {
+  // cost_cents (facultatif) : prix payé pour un réassort, sorti du compte account_id (comptabilité)
+  function drinkStock(id, { delta, set, note = "", cost_cents, account_id }) {
     requireAdmin();
     if ((delta === undefined) === (set === undefined)) fail("Indiquez soit une variation, soit un stock exact", 422);
+    if (cost_cents !== undefined && cost_cents !== null) {
+      if (!(delta > 0)) fail("Un coût d'achat ne s'indique que pour un réassort", 422);
+      checkAmount(cost_cents);
+    }
     return mutate((st, log) => {
       const d = st.drinks.find((x) => x.id === id);
       if (!d) fail("Boisson introuvable", 404);
       const dlt = delta !== undefined ? delta : set - d.stock;
       if (!Number.isInteger(dlt) || Math.abs(dlt) > 100_000) fail("Quantité invalide", 422);
       if (d.stock + dlt < 0) fail("Le stock ne peut pas devenir négatif", 422);
+      const acc = cost_cents ? accountFor(st, account_id) : null;
       if (dlt) {
         d.stock += dlt;
-        log({ kind: "stock", drink_id: id, drink_name: d.name, stock_delta: dlt,
-              note: note.trim() || (set !== undefined ? "Inventaire" : dlt > 0 ? "Réassort" : "Sortie de stock") });
+        const t = log({ kind: "stock", drink_id: id, drink_name: d.name, stock_delta: dlt,
+              note: note.trim() || (set !== undefined ? "Inventaire" : dlt > 0 ? "Réassort" : "Sortie de stock")
+                    + (cost_cents ? ` (achat ${euroTxt(cost_cents)})` : "") });
+        if (acc) addEntry(st, { kind: "out", cat: "courses", amount_cents: cost_cents, account_id: acc.id,
+                                label: `Achat ${d.name} × ${dlt}`, drink_id: id, qty: dlt, ref_tx: t.id });
       }
       return d;
     });
@@ -693,6 +712,7 @@ const Store = (() => {
       const d = t0.drink_id && st.drinks.find((x) => x.id === t0.drink_id);
       if (d && t0.stock_delta) d.stock = Math.max(0, d.stock - t0.stock_delta);
       rows.push({ ...t0, cancelled: true });
+      for (const e of st.ledger) if (e.ref_tx === id && !e.cancelled) { e.cancelled = true; e.cancelled_at = nowIso(); }
       log({ kind: "cancel", user_id: t0.user_id, user_name: t0.user_name, drink_id: t0.drink_id,
             drink_name: t0.drink_name, qty: t0.qty, unit_cents: t0.unit_cents, amount_cents: -t0.amount_cents,
             stock_delta: -t0.stock_delta, note: `Annulation #${id}`, ref_id: id });
@@ -723,13 +743,243 @@ const Store = (() => {
                          t.admin, t.note, t.cancelled ? "oui" : ""])),
     };
   }
-  function exportBalances() {
+  const inPeriod = (date, from, to) => (!from || date >= from) && (!to || date <= to);
+  const periodTag = (from, to) => (from || to ? `-${(from || "debut").replace(/-/g, "")}-${(to || "auj").replace(/-/g, "")}` : "");
+  const live = (txs) => txs.filter((t) => !t.cancelled);
+
+  // Ardoises : solde actuel + totaux rechargés / consommés sur la période
+  async function exportBalances(date_from, date_to) {
     requireAdmin();
+    const txs = live(await filteredTx({ date_from, date_to }));
+    const tot = new Map();
+    for (const t of txs) {
+      if (!t.user_id) continue;
+      const o = tot.get(t.user_id) || { paid: 0, used: 0, n: 0 };
+      if (t.kind === "payment") o.paid -= t.amount_cents;
+      if (t.kind === "order") { o.used += t.amount_cents; o.n += t.qty; }
+      tot.set(t.user_id, o);
+    }
     const rows = [...S.users].sort((a, b) => a.name.localeCompare(b.name, "fr"));
     return {
-      filename: `popote-ardoises-${stamp()}.csv`, type: "text/csv",
-      text: csv(["Nom", "Solde (€)", "Active", "Dernière visite"],
-        rows.map((u) => [u.name, euro(-u.balance_cents), u.active ? "oui" : "non", fr(u.last_seen_at, false)])),
+      filename: `popote-ardoises-${stamp()}${periodTag(date_from, date_to)}.csv`, type: "text/csv",
+      text: csv(["Nom", "État", "Solde (€)", "Rechargé (€)", "Consommé (€)", "Consommations", "Créée le", "Dernière visite"],
+        rows.map((u) => { const o = tot.get(u.id) || { paid: 0, used: 0, n: 0 };
+          return [u.name, !isApproved(u) ? "à valider" : u.active ? "active" : "désactivée", euro(-u.balance_cents),
+                  euro(o.paid), euro(o.used), o.n, fr(u.created_at, false), fr(u.last_seen_at, false)]; })),
+    };
+  }
+
+  // Coût d'achat unitaire moyen par produit, d'après les réassorts payés (comptabilité)
+  function unitCosts(from, to) {
+    const m = new Map();
+    for (const e of S.ledger) {
+      if (e.cancelled || e.cat !== "courses" || !e.drink_id || !e.qty || !inPeriod(e.date, from, to)) continue;
+      const o = m.get(e.drink_id) || { cents: 0, qty: 0 };
+      o.cents += e.amount_cents; o.qty += e.qty; m.set(e.drink_id, o);
+    }
+    return m;
+  }
+  async function exportProducts(date_from, date_to) {
+    requireAdmin();
+    const sold = new Map();
+    for (const t of live(await filteredTx({ kind: "order", date_from, date_to }))) {
+      const o = sold.get(t.drink_id) || { qty: 0, cents: 0 };
+      o.qty += t.qty; o.cents += t.amount_cents; sold.set(t.drink_id, o);
+    }
+    const costs = unitCosts(), bought = unitCosts(date_from, date_to);
+    const rows = [...S.drinks].sort(byCat);
+    return {
+      filename: `popote-produits-${stamp()}${periodTag(date_from, date_to)}.csv`, type: "text/csv",
+      text: csv(["Catégorie", "Produit", "Prix de vente (€)", "Coût d'achat moyen (€)", "Marge par unité (€)", "Stock",
+                 "Seuil stock bas", "Sur la borne", "Vendus", "Ventes (€)", "Achetés", "Achats (€)", "Valeur du stock au prix d'achat (€)"],
+        rows.map((d) => {
+          const s = sold.get(d.id) || { qty: 0, cents: 0 }, b = bought.get(d.id) || { qty: 0, cents: 0 };
+          const c = costs.get(d.id), unit = c && c.qty ? Math.round(c.cents / c.qty) : null;
+          return [CATEGORIES.find((x) => x.id === d.category)?.label || "", d.name, euro(d.price_cents), euro(unit),
+                  unit === null ? "" : euro(d.price_cents - unit), d.stock, d.low_stock, d.active ? "oui" : "non",
+                  s.qty, euro(s.cents), b.qty, euro(b.cents), unit === null ? "" : euro(unit * d.stock)];
+        })),
+    };
+  }
+
+  // Finances par mois : achats de cartes, consommations, achats de produits, bénéfice
+  async function financeSummary(date_from, date_to) {
+    requireAdmin();
+    const months = new Map();
+    const M = (k) => { if (!months.has(k)) months.set(k, { cards: 0, sales: 0, courses: 0, other_in: 0, costs: 0, cash_in: 0, cash_out: 0 }); return months.get(k); };
+    for (const t of live(await filteredTx({ date_from, date_to }))) {
+      const k = ymd(new Date(t.ts)).slice(0, 7);
+      if (t.kind === "payment") M(k).cards -= t.amount_cents;
+      if (t.kind === "order") M(k).sales += t.amount_cents;
+    }
+    for (const e of S.ledger) {
+      if (e.cancelled || e.cat === "ouverture" || e.kind === "transfer" || !inPeriod(e.date, date_from, date_to)) continue;
+      const m = M(e.date.slice(0, 7));
+      if (e.cat === "courses") m.courses += e.amount_cents;
+      else if (e.kind === "in" && e.cat !== "recharge") m.other_in += e.amount_cents;
+      else if (e.kind === "out") m.costs += e.amount_cents;
+      if (e.kind === "in") m.cash_in += e.amount_cents; else m.cash_out += e.amount_cents;
+    }
+    const rows = [...months.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([k, m]) => ({ month: k, ...m,
+      profit: m.sales + m.other_in - m.courses - m.costs, cash: m.cash_in - m.cash_out }));
+    const total = rows.reduce((t, r) => { for (const f of ["cards", "sales", "courses", "other_in", "costs", "profit", "cash"]) t[f] += r[f]; return t; },
+                              { month: "Total", cards: 0, sales: 0, courses: 0, other_in: 0, costs: 0, profit: 0, cash: 0 });
+    return { rows, total };
+  }
+  const MONTHS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+  const monthFr = (k) => { const [y, m] = k.split("-").map(Number); return `${MONTHS[m - 1]} ${y}`; };
+  async function exportFinances(date_from, date_to) {
+    const { rows, total } = await financeSummary(date_from, date_to);
+    const line = (r, label) => [label, euro(r.cards), euro(r.sales), euro(r.courses), euro(r.other_in), euro(r.costs), euro(r.profit), euro(r.cash)];
+    return {
+      filename: `popote-finances-${stamp()}${periodTag(date_from, date_to)}.csv`, type: "text/csv",
+      text: csv(["Mois", "Achats de cartes (€)", "Consommations (€)", "Achats de produits (€)", "Autres recettes (€)",
+                 "Frais et autres dépenses (€)", "Bénéfice (€)", "Trésorerie : entrées − sorties (€)"],
+        [...rows.map((r) => line(r, monthFr(r.month))), line(total, "Total")]),
+    };
+  }
+
+  // ---------- comptabilité : comptes (caisse, banque, responsables) et écritures
+  const ACCOUNT_TYPES = [
+    { id: "caisse", label: "Caisse" }, { id: "banque", label: "Banque" }, { id: "responsable", label: "Responsable" },
+  ];
+  const LEDGER_CATS = [
+    { id: "recharge", kind: "in", label: "Recharge de cartes", auto: true },
+    { id: "recette", kind: "in", label: "Autre recette (subvention, don…)" },
+    { id: "courses", kind: "out", label: "Achat de produits (courses)" },
+    { id: "frais", kind: "out", label: "Frais et matériel" },
+    { id: "depense", kind: "out", label: "Autre dépense" },
+    { id: "transfert", kind: "transfer", label: "Transfert entre comptes" },
+    { id: "ouverture", kind: "in", label: "Solde d'ouverture", auto: true },
+  ];
+  const checkAmount = (c) => { if (!Number.isInteger(c) || c <= 0 || c > 10_000_000) fail("Montant invalide", 422); };
+  const ymdRe = /^\d{4}-\d{2}-\d{2}$/;
+  function accountFor(st, id) {
+    const a = st.accounts.find((x) => x.id === Number(id));
+    if (!a) fail("Compte introuvable", 404);
+    if (!a.active) fail(`Le compte « ${a.name} » est archivé`, 422);
+    return a;
+  }
+  const payAccount = (st, id) => (id ? accountFor(st, id) : st.accounts.find((a) => a.active && a.type === "caisse")
+                                       || st.accounts.find((a) => a.active) || null);
+  function addEntry(st, e) {
+    st.seq.entry += 1;
+    const row = { id: st.seq.entry, ts: nowIso(), date: e.date || ymd(new Date()), kind: e.kind, cat: e.cat,
+                  label: e.label, amount_cents: e.amount_cents, account_id: e.account_id, to_account_id: e.to_account_id || null,
+                  note: e.note || null, ref_tx: e.ref_tx || null, drink_id: e.drink_id || null, qty: e.qty || null,
+                  cancelled: false, cancelled_at: null };
+    st.ledger.push(row);
+    return row;
+  }
+  // Effet d'une écriture sur un compte (+ entre, − sort)
+  function effect(e, accId) {
+    if (e.cancelled) return 0;
+    if (e.kind === "in") return e.account_id === accId ? e.amount_cents : 0;
+    if (e.kind === "out") return e.account_id === accId ? -e.amount_cents : 0;
+    return (e.to_account_id === accId ? e.amount_cents : 0) - (e.account_id === accId ? e.amount_cents : 0);
+  }
+  function accounts() {
+    requireAdmin();
+    return S.accounts.map((a) => ({ ...a, balance_cents: S.ledger.reduce((s, e) => s + effect(e, a.id), 0),
+                                    entries: S.ledger.filter((e) => e.account_id === a.id || e.to_account_id === a.id).length }))
+      .sort((a, b) => (b.active - a.active) || ACCOUNT_TYPES.findIndex((t) => t.id === a.type) - ACCOUNT_TYPES.findIndex((t) => t.id === b.type)
+                      || a.name.localeCompare(b.name, "fr"));
+  }
+  // Vue d'ensemble : trésorerie, avoirs des clients sur leurs cartes, découverts
+  function accountingSummary() {
+    const acc = accounts();
+    const treasury = acc.reduce((s, a) => s + a.balance_cents, 0);
+    const credits = S.users.reduce((s, u) => s + Math.max(0, -u.balance_cents), 0);   // déjà payé, pas encore consommé
+    const debts = S.users.reduce((s, u) => s + Math.max(0, u.balance_cents), 0);      // découverts à récupérer
+    const owed = acc.filter((a) => a.type === "responsable" && a.balance_cents < 0).reduce((s, a) => s - a.balance_cents, 0);
+    return { accounts: acc, treasury_cents: treasury, card_credits_cents: credits, card_debts_cents: debts,
+             owed_to_admins_cents: owed, net_cents: treasury - credits + debts };
+  }
+  function accountCreate({ name, type, opening_cents = 0 }) {
+    requireAdmin();
+    name = String(name || "").replace(/\s+/g, " ").trim();
+    if (!name || name.length > 30) fail("Nom de compte invalide", 422);
+    if (!ACCOUNT_TYPES.some((t) => t.id === type)) fail("Type de compte invalide", 422);
+    if (!Number.isInteger(opening_cents) || Math.abs(opening_cents) > 10_000_000) fail("Solde d'ouverture invalide", 422);
+    return mutate((st) => {
+      if (st.accounts.some((a) => nameKey(a.name) === nameKey(name))) fail("Un compte porte déjà ce nom", 409);
+      st.seq.account += 1;
+      const a = { id: st.seq.account, name, type, active: true, created_at: nowIso() };
+      st.accounts.push(a);
+      if (opening_cents) addEntry(st, { kind: opening_cents > 0 ? "in" : "out", cat: "ouverture", account_id: a.id,
+                                        amount_cents: Math.abs(opening_cents), label: `Solde d'ouverture — ${name}` });
+      return a;
+    });
+  }
+  function accountPatch(id, { name, active }) {
+    requireAdmin();
+    return mutate((st) => {
+      const a = st.accounts.find((x) => x.id === id);
+      if (!a) fail("Compte introuvable", 404);
+      if (name !== undefined) {
+        const n = String(name).replace(/\s+/g, " ").trim();
+        if (!n || n.length > 30) fail("Nom de compte invalide", 422);
+        if (st.accounts.some((x) => x.id !== id && nameKey(x.name) === nameKey(n))) fail("Un compte porte déjà ce nom", 409);
+        a.name = n;
+      }
+      if (active === false) {
+        const bal = st.ledger.reduce((s, e) => s + effect(e, id), 0);
+        if (bal) fail(`Solde non nul (${euroTxt(bal)}) : videz le compte par un transfert avant de l'archiver`, 422);
+        if (st.accounts.filter((x) => x.active && x.id !== id).length === 0) fail("Il faut garder au moins un compte actif", 422);
+        a.active = false;
+      } else if (active === true) a.active = true;
+      return { ...a };
+    });
+  }
+  function ledgerAdd({ kind, cat, date, label, amount_cents, account_id, to_account_id, note }) {
+    requireAdmin();
+    const c = LEDGER_CATS.find((x) => x.id === cat);
+    if (!c || c.auto || c.kind !== kind) fail("Catégorie invalide", 422);
+    checkAmount(amount_cents);
+    date = date || ymd(new Date());
+    if (!ymdRe.test(date)) fail("Date invalide", 422);
+    label = String(label || "").replace(/\s+/g, " ").trim().slice(0, 80) || c.label;
+    return mutate((st) => {
+      const from = accountFor(st, account_id);
+      let to = null;
+      if (kind === "transfer") {
+        to = accountFor(st, to_account_id);
+        if (to.id === from.id) fail("Choisissez deux comptes différents", 422);
+      }
+      return addEntry(st, { kind, cat, date, label, amount_cents, account_id: from.id, to_account_id: to?.id,
+                            note: String(note || "").trim().slice(0, 200) || null });
+    });
+  }
+  function ledgerCancel(id) {
+    requireAdmin();
+    return mutate((st) => {
+      const e = st.ledger.find((x) => x.id === id);
+      if (!e) fail("Écriture introuvable", 404);
+      if (e.cancelled) fail("Écriture déjà annulée", 409);
+      if (e.cat === "recharge") fail("Cette recharge vient d'un paiement : annulez le paiement dans le Journal", 422);
+      e.cancelled = true; e.cancelled_at = nowIso();
+      return { ok: true };
+    });
+  }
+  function ledger({ account_id, month, date_from, date_to } = {}) {
+    requireAdmin();
+    return S.ledger.filter((e) => (!account_id || e.account_id === account_id || e.to_account_id === account_id)
+                                  && (!month || e.date.startsWith(month)) && inPeriod(e.date, date_from, date_to))
+      .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
+  }
+  function exportLedger(date_from, date_to) {
+    requireAdmin();
+    const name = (id) => S.accounts.find((a) => a.id === id)?.name || "";
+    const rows = ledger({ date_from, date_to }).reverse();
+    const KIND = { in: "Entrée", out: "Sortie", transfer: "Transfert" };
+    return {
+      filename: `popote-comptabilite-${stamp()}${periodTag(date_from, date_to)}.csv`, type: "text/csv",
+      text: csv(["N°", "Date", "Type", "Catégorie", "Libellé", "Compte", "Vers le compte", "Entrée (€)", "Sortie (€)",
+                 "Transfert (€)", "Note", "Annulée", "Saisie le"],
+        rows.map((e) => [e.id, fr(fromYmd(e.date).toISOString(), false), KIND[e.kind], LEDGER_CATS.find((c) => c.id === e.cat)?.label,
+                         e.label, name(e.account_id), name(e.to_account_id),
+                         e.kind === "in" ? euro(e.amount_cents) : "", e.kind === "out" ? euro(e.amount_cents) : "",
+                         e.kind === "transfer" ? euro(e.amount_cents) : "", e.note, e.cancelled ? "oui" : "", fr(e.ts)])),
     };
   }
 
@@ -958,7 +1208,8 @@ const Store = (() => {
     hasAdmins, createFirstAdmin, adminLogin, adminLogout, currentAdmin, touchAdmin,
     stats, users, userPatch, approveUser, rejectUser, deleteUser, payment, adjust,
     drinks, drinkCreate, drinkPatch, drinkStock,
-    transactions, cancel, exportTransactions, exportBalances,
+    transactions, cancel, exportTransactions, exportBalances, exportProducts, exportFinances, exportLedger, financeSummary,
+    ACCOUNT_TYPES, LEDGER_CATS, accounts, accountingSummary, accountCreate, accountPatch, ledgerAdd, ledgerCancel, ledger,
     backup, defaultBackupName, markBackup, restore, storageInfo, settings, setOverdraft, resetActivity, wipeAll,
     emojiFor: (d) => d.emoji || suggestEmoji(d.name, d.category), suggestEmoji,
     overdraft: () => S.settings.overdraft_cents,

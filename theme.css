@@ -693,3 +693,64 @@ input { -webkit-user-select: text; user-select: text; }
 #v-admin .alt-row2 { margin-top: -4px; }
 #v-admin .alt-row2[hidden] { display: none; }
 #v-admin .alt-tag.ghost { background: transparent; color: var(--dim); font-weight: 600; }
+
+/* ---------- Deuxième lampe : symétrique de la première (même distance au bord droit) ---------- */
+#v-kiosk .lamp.lamp-right { left: auto; right: clamp(150px, 24vw, 320px); }
+
+/* ---------- Comptabilité ---------- */
+#v-admin .acc-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+#v-admin .sec-title { margin: 6px 0 10px; font-family: var(--display); font-weight: 800; font-size: 24px; }
+#v-admin .sec-title .muted { font-family: var(--text); font-weight: 400; font-size: 14px; }
+#v-admin .sec-title.flat { margin: 0 8px 0 0; }
+#v-admin .acc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; margin-bottom: 18px; }
+#v-admin .acc-card {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; cursor: pointer;
+  padding: 14px 16px; border: 0; border-radius: 16px; color: var(--ink); font: inherit;
+  background: var(--panel); box-shadow: inset 0 0 0 1px var(--line), inset 4px 0 0 var(--acc, var(--amber));
+}
+#v-admin .acc-card.t-banque { --acc: #4FC4BC; }
+#v-admin .acc-card.t-responsable { --acc: #EA7452; }
+#v-admin .acc-card.sel { background: var(--raise); box-shadow: inset 0 0 0 2px var(--acc, var(--amber)), inset 4px 0 0 var(--acc, var(--amber)); }
+#v-admin .acc-type { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--acc, var(--amber)); }
+#v-admin .acc-name { font-family: var(--display); font-weight: 700; font-size: 22px; line-height: 1.15; }
+#v-admin .acc-bal { font-family: var(--display); font-weight: 800; font-size: 30px; line-height: 1.15; }
+#v-admin .acc-bal .amt:not(.owed):not(.credit) { color: var(--ink-2); }
+#v-admin .acc-hint { font-size: 13px; color: var(--dim); }
+#v-admin .compta-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-bottom: 22px; align-items: start; }
+#v-admin .entry-form { align-items: stretch; }
+#v-admin .entry-form .seg { width: 100%; }
+#v-admin .stack { flex-direction: column; align-items: stretch; gap: 4px; }
+#v-admin .stack select { width: 100%; }
+#v-admin .grow { flex: 1 1 180px; }
+#v-admin .entry-form .btn-primary { align-self: flex-start; }
+#v-admin .acc-add { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
+#v-admin .acc-add input[name=name] { flex: 1 1 180px; }
+#v-admin .acc-list { list-style: none; margin: 0; padding: 0; width: 100%; }
+#v-admin .acc-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: 10px; align-items: center;
+  padding: 8px 0; border-top: 1px solid var(--line); }
+#v-admin .acc-list li input { min-height: 36px; padding: 5px 9px; width: 100%; }
+#v-admin .acc-list li.off { opacity: .55; }
+#v-admin .e-cat { display: block; font-size: 13px; color: var(--dim); margin-top: 2px; }
+#v-admin .ledger-tbl tr.off td { opacity: .55; }
+#v-admin .nowrap { white-space: nowrap; }
+
+/* ---------- Export ---------- */
+#v-admin .export-period { margin-bottom: 16px; }
+#v-admin .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+#v-admin .export-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; }
+#v-admin .export-grid .card .btn { margin-top: auto; }
+#v-admin .tbl-scroll { width: 100%; overflow-x: auto; }
+#v-admin .fin-tbl { font-size: 14px; }
+#v-admin .fin-tbl th, #v-admin .fin-tbl td { padding: 9px 10px; white-space: nowrap; }
+#v-admin .fin-tbl td:first-child::first-letter { text-transform: uppercase; }
+#v-admin .fin-tbl tr.total td { font-weight: 700; border-top: 2px solid var(--line-2); }
+
+/* Réassort : coût d'achat */
+#v-admin .restock-dlg { width: min(520px, calc(100% - 24px)); }
+#v-admin .restock-dlg form { display: flex; flex-direction: column; gap: 12px; }
+#v-admin .restock-dlg h3 { font-family: var(--display); font-weight: 800; font-size: 28px; }
+#v-admin .row.end { justify-content: flex-end; }
+@media (max-width: 900px) {
+  #v-admin .acc-summary { grid-template-columns: 1fr 1fr; }
+  #v-admin .compta-cols { grid-template-columns: 1fr; }
+}

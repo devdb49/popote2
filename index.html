@@ -37,6 +37,7 @@
 
 <!-- ===================================================== ACCUEIL DE LA SECTION -->
 <section class="screen" id="s-home" hidden>
+  <div class="lamp lamp-right" aria-hidden="true"><span class="cord"></span><span class="shade"></span><span class="bulb"></span><span class="cone"></span></div>
   <div class="lamp" aria-hidden="true"><span class="cord"></span><span class="shade"></span><span class="bulb"></span><span class="cone"></span></div>
   <header class="home-head">
     <h1 class="brand" id="brand">La Popote</h1>
@@ -178,6 +179,8 @@
       <button role="tab" data-tab="users" aria-selected="true">Ardoises</button>
       <button role="tab" data-tab="drinks">Produits</button>
       <button role="tab" data-tab="log">Journal</button>
+      <button role="tab" data-tab="compta">Comptabilité</button>
+      <button role="tab" data-tab="export">Export</button>
       <button role="tab" data-tab="backup">Réglages</button>
     </nav>
     <span class="who"><span id="me"></span> <button class="btn btn-sm btn-exit" id="logout">Revenir à la borne</button></span>
@@ -190,7 +193,6 @@
   <section class="panel" id="t-users">
     <div class="bar">
       <input type="search" id="user-q" placeholder="Rechercher un identifiant" aria-label="Rechercher un identifiant" autocorrect="off">
-      <button class="btn" id="export-ardoises" type="button">Exporter les soldes (CSV)</button>
     </div>
     <table class="tbl">
       <thead><tr><th>Identifiant</th><th class="r">Solde</th><th class="hide-sm">Dernière visite</th><th>État</th></tr></thead>
@@ -251,6 +253,113 @@
   <!-- Responsables -->
 
   <!-- Sauvegarde -->
+  <!-- Comptabilité -->
+  <section class="panel" id="t-compta" hidden>
+    <div class="acc-summary" id="acc-summary" aria-label="Situation financière"></div>
+    <h3 class="sec-title">Comptes <span class="muted">— touchez un compte pour voir ses écritures</span></h3>
+    <div class="acc-grid" id="acc-grid"></div>
+    <div class="compta-cols">
+      <form class="card entry-form" id="entry-form" autocomplete="off">
+        <h3>Nouvelle écriture</h3>
+        <div class="seg" role="radiogroup" aria-label="Type d'écriture">
+          <label><input type="radio" name="kind" value="in" checked><span>Entrée</span></label>
+          <label><input type="radio" name="kind" value="out"><span>Sortie</span></label>
+          <label><input type="radio" name="kind" value="transfer"><span>Transfert</span></label>
+        </div>
+        <div class="row">
+          <label class="inline">Date <input type="date" name="date" required aria-label="Date"></label>
+          <label class="inline">Montant <input name="amount" inputmode="decimal" placeholder="€" required class="w-num" aria-label="Montant en euros"></label>
+        </div>
+        <label class="inline stack">Catégorie <select name="cat" aria-label="Catégorie"></select></label>
+        <input name="label" maxlength="80" placeholder="Libellé (ex. Courses Leclerc, dépôt en banque…)" aria-label="Libellé">
+        <div class="row">
+          <label class="inline stack grow"><span id="acc-from-label">Sur le compte</span> <select name="account" aria-label="Compte"></select></label>
+          <label class="inline stack grow" id="acc-to-wrap" hidden>Vers le compte <select name="to" aria-label="Compte de destination"></select></label>
+        </div>
+        <input name="note" maxlength="200" placeholder="Note, n° de ticket ou de chèque (facultatif)" aria-label="Note">
+        <p class="error" id="entry-error" role="alert"></p>
+        <button class="btn btn-primary" type="submit">Enregistrer l'écriture</button>
+      </form>
+      <div class="card">
+        <h3>Gérer les comptes</h3>
+        <p class="muted">Caisse et banque : l'argent de la popote. Compte <b>responsable</b> : solde positif, il détient
+           de l'argent de la popote ; solde négatif, il a avancé de l'argent et la popote le lui doit.</p>
+        <form class="acc-add" id="acc-form" autocomplete="off">
+          <input name="name" maxlength="30" placeholder="Nom (ex. Banque, Sgt Martin)" required aria-label="Nom du compte">
+          <select name="type" aria-label="Type de compte">
+            <option value="responsable">Responsable</option><option value="caisse">Caisse</option><option value="banque">Banque</option>
+          </select>
+          <input name="opening" inputmode="decimal" placeholder="Solde initial €" class="w-num" aria-label="Solde initial en euros">
+          <button class="btn" type="submit">Ajouter le compte</button>
+        </form>
+        <p class="error" id="acc-error" role="alert"></p>
+        <ul class="acc-list" id="acc-list"></ul>
+      </div>
+    </div>
+    <div class="bar">
+      <h3 class="sec-title flat">Écritures</h3>
+      <select id="ledger-acc" aria-label="Compte"></select>
+      <label class="inline">Mois <input type="month" id="ledger-month" aria-label="Mois"></label>
+    </div>
+    <table class="tbl ledger-tbl">
+      <thead><tr><th>Date</th><th>Écriture</th><th class="hide-sm">Compte</th><th class="r">Montant</th><th></th></tr></thead>
+      <tbody id="ledger-body"></tbody>
+    </table>
+    <p class="empty" id="ledger-empty" hidden>Aucune écriture. Les paiements des cartes et les réassorts avec un coût d'achat
+       s'inscrivent ici automatiquement ; ajoutez les autres mouvements avec « Nouvelle écriture ».</p>
+  </section>
+
+  <!-- Export -->
+  <section class="panel" id="t-export" hidden>
+    <div class="card export-period">
+      <h3>Période</h3>
+      <div class="row">
+        <label class="inline">Du <input type="date" id="exp-from" aria-label="Début"></label>
+        <label class="inline">au <input type="date" id="exp-to" aria-label="Fin"></label>
+        <div class="chips" id="exp-presets">
+          <button class="btn btn-sm" type="button" data-p="month">Ce mois</button>
+          <button class="btn btn-sm" type="button" data-p="last">Mois dernier</button>
+          <button class="btn btn-sm" type="button" data-p="year">Cette année</button>
+          <button class="btn btn-sm" type="button" data-p="all">Tout</button>
+        </div>
+      </div>
+      <p class="muted" id="exp-period-txt"></p>
+    </div>
+    <div class="export-grid">
+      <div class="card card-wide">
+        <h3>Finances</h3>
+        <p class="muted">Par mois : achats de cartes, consommations, achats de produits (courses), autres recettes et frais,
+           bénéfice (consommations + autres recettes − achats − frais) et trésorerie (entrées − sorties d'argent).</p>
+        <div class="tbl-scroll"><table class="tbl fin-tbl">
+          <thead><tr><th>Mois</th><th class="r">Achats de cartes</th><th class="r">Consommations</th><th class="r">Achats produits</th>
+            <th class="r">Autres recettes</th><th class="r">Frais</th><th class="r">Bénéfice</th><th class="r">Trésorerie</th></tr></thead>
+          <tbody id="fin-body"></tbody>
+        </table></div>
+        <button class="btn btn-primary" type="button" id="exp-finances">Exporter les finances (CSV)</button>
+      </div>
+      <div class="card">
+        <h3>Ardoises</h3>
+        <p class="muted">Chaque carte : état, solde actuel, montants rechargés et consommés sur la période.</p>
+        <button class="btn btn-primary" type="button" id="exp-ardoises">Exporter les ardoises (CSV)</button>
+      </div>
+      <div class="card">
+        <h3>Produits</h3>
+        <p class="muted">Prix, stock, ventes et achats sur la période, coût d'achat moyen, marge et valeur du stock.</p>
+        <button class="btn btn-primary" type="button" id="exp-produits">Exporter les produits (CSV)</button>
+      </div>
+      <div class="card">
+        <h3>Comptabilité</h3>
+        <p class="muted">Toutes les écritures de la période (entrées, sorties, transferts), compte par compte.</p>
+        <button class="btn" type="button" id="exp-compta">Exporter les écritures (CSV)</button>
+      </div>
+      <div class="card">
+        <h3>Journal des opérations</h3>
+        <p class="muted">Commandes, paiements, corrections, stocks et réglages de la période.</p>
+        <button class="btn" type="button" id="exp-journal">Exporter le journal (CSV)</button>
+      </div>
+    </div>
+  </section>
+
   <section class="panel" id="t-backup" hidden>
     <div class="backup-grid">
       <div class="card card-wide">
@@ -371,6 +480,25 @@
     <p class="muted version-line">Version de l'application : <span class="app-version"></span></p>
   </section>
 
+  <!-- Réassort : coût d'achat -->
+  <dialog class="fiche restock-dlg" id="restock-dlg">
+  <form id="restock-form" method="dialog" autocomplete="off">
+    <h3 id="rs-title">Réassort</h3>
+    <p class="muted">Indiquez ce que vous avez payé pour l'inscrire en comptabilité (achat de produits). Laissez vide si
+       ce réassort n'a rien coûté ou s'il est déjà compté.</p>
+    <div class="row">
+      <label class="inline">Coût total <input name="cost" inputmode="decimal" placeholder="€" class="w-num" aria-label="Coût d'achat total en euros"></label>
+      <label class="inline grow">payé par <select name="account" id="rs-account" aria-label="Compte qui a payé"></select></label>
+    </div>
+    <p class="muted" id="rs-unit"></p>
+    <p class="error" id="rs-error" role="alert"></p>
+    <div class="row end">
+      <button class="btn" type="button" id="rs-cancel">Annuler</button>
+      <button class="btn btn-primary" type="submit" id="rs-ok">Enregistrer le réassort</button>
+    </div>
+  </form>
+</dialog>
+
   <!-- Fiche usager -->
   <dialog class="fiche" id="user-dlg">
     <div class="fiche-head">
@@ -395,6 +523,7 @@
         <button type="button" class="btn" id="pay-all">Tout régler</button>
       </div>
       <input name="note" placeholder="Note (espèces, chèque n°…, virement)" maxlength="200" aria-label="Note">
+      <label class="inline">Encaissé sur <select name="account" id="pay-account" aria-label="Compte qui reçoit l'argent"></select></label>
       <button class="btn btn-primary" type="submit">Valider le paiement</button>
     </form>
 

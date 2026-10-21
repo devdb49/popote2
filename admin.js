@@ -48,7 +48,8 @@ const Admin = (() => {
   async function deliver({ filename, type, text }) {
     const file = new File([text], filename, { type });
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      try { await navigator.share({ files: [file], title: filename }); return true; }
+      // seulement le fichier : un titre ou un texte serait enregistré à part, dans un fichier texte
+      try { await navigator.share({ files: [file] }); return true; }
       catch (e) { if (e.name === "AbortError") return false; }
     }
     const a = el("a", { href: URL.createObjectURL(file), download: filename });
@@ -72,7 +73,7 @@ const Admin = (() => {
   }
   function close() {
     clearInterval(watch);
-    if ($("user-dlg").open) $("user-dlg").close();
+    for (const d of ["user-dlg", "restock-dlg"]) if ($(d).open) $(d).close();
     Store.adminLogout();
     $("v-admin").hidden = true;
     Kiosk.home();
@@ -93,7 +94,8 @@ const Admin = (() => {
 
   function refresh() {
     quiet(loadStats());
-    quiet(({ users: loadUsers, drinks: loadDrinks, log: () => loadLog(true), backup: loadBackup })[tab]());
+    quiet(({ users: loadUsers, drinks: loadDrinks, log: () => loadLog(true), compta: loadCompta, export: loadExport,
+             backup: loadBackup })[tab]());
   }
 
   async function loadStats() {
@@ -137,9 +139,20 @@ const Admin = (() => {
     )));
     $("users-empty").hidden = users.length > 0 || $("user-q").value !== "";
   }
-  $("export-ardoises").addEventListener("click", () => quiet(call(Store.exportBalances).then(deliver)));
 
-  let cur = null;
+  let cur = null, lastPayAccount = null;
+  // Liste des comptes actifs dans un <select> (caisse en premier par défaut)
+  function fillAccounts(sel, selected, { all = false, exclude = null } = {}) {
+    const list = Store.accounts().filter((a) => a.active && a.id !== exclude);
+    const typeLabel = (t) => Store.ACCOUNT_TYPES.find((x) => x.id === t)?.label || t;
+    sel.replaceChildren(...(all ? [el("option", { value: "" }, "Tous les comptes")] : []),
+      ...list.map((a) => el("option", { value: a.id, selected: a.id === selected },
+        a.name.toLowerCase() === typeLabel(a.type).toLowerCase() ? a.name : `${a.name} (${typeLabel(a.type).toLowerCase()})`)));
+    if (!all && !list.some((a) => a.id === selected)) {
+      const caisse = list.find((a) => a.type === "caisse");
+      if (caisse) sel.value = caisse.id;
+    }
+  }
   async function openUser(id) {
     cur = (await call(() => Store.users(""))).find((u) => u.id === id);
     if (!cur) return;
@@ -154,6 +167,7 @@ const Admin = (() => {
     $("u-delete-zone").hidden = !cur.approved;   // une carte en attente se refuse
     $("pay-form").hidden = !cur.approved;
     $("pay-all").hidden = cur.balance_cents <= 0;
+    fillAccounts($("pay-account"), lastPayAccount);
     const h = await call(() => Store.transactions({ user_id: id, limit: 15 }));
     $("u-history").replaceChildren(...h.items.map((t) => el("li", {},
       el("span", { class: t.cancelled ? "struck" : "" }, `${fmtDate(t.ts)} · ${describe(t)}`),
@@ -176,7 +190,8 @@ const Admin = (() => {
     ev.preventDefault();
     const f = ev.target.elements, c = parseEuro(f.amount.value);
     if (!c || c <= 0) { $("u-error").textContent = "Montant invalide (ex. 12,50)"; return; }
-    userAction(() => Store.payment(cur.id, c, f.note.value), `${euro(c)} crédités sur la carte`);
+    lastPayAccount = Number(f.account.value) || null;
+    userAction(() => Store.payment(cur.id, c, f.note.value, lastPayAccount), `${euro(c)} crédités sur la carte`);
   });
   $("adj-form").addEventListener("submit", (ev) => {
     ev.preventDefault();
@@ -266,6 +281,7 @@ const Admin = (() => {
       if (!Number.isFinite(n) || (kind === "delta" && n === 0) || (kind === "set" && n < 0)) {
         toast("Quantité invalide"); return;
       }
+      if (kind === "delta" && n > 0) return askRestock(d, n);
       try {
         await call(() => Store.drinkStock(d.id, kind === "delta" ? { delta: n } : { set: n }));
         toast(kind === "delta" ? `${n > 0 ? "+" : ""}${n} ${d.name}` : `Stock de ${d.name} : ${n}`);
@@ -288,6 +304,38 @@ const Admin = (() => {
         d.active ? "Retirer" : "Remettre")),
     );
   }
+
+  // Réassort : quantité saisie dans le tableau, coût d'achat dans une petite fenêtre
+  let rs = null, lastBuyAccount = null;
+  function askRestock(d, n) {
+    rs = { d, n };
+    const f = $("restock-form").elements;
+    $("restock-form").reset();
+    $("rs-title").textContent = `Réassort : ${n} × ${d.name}`;
+    $("rs-error").textContent = ""; $("rs-unit").textContent = "";
+    fillAccounts($("rs-account"), lastBuyAccount);
+    $("restock-dlg").showModal();
+    f.cost.focus();
+  }
+  $("restock-form").elements.cost.addEventListener("input", (ev) => {
+    const c = parseEuro(ev.target.value);
+    $("rs-unit").textContent = c > 0 && rs ? `Soit ${euro(Math.round(c / rs.n))} par unité (vendu ${euro(rs.d.price_cents)}).` : "";
+  });
+  $("rs-cancel").addEventListener("click", () => { rs = null; $("restock-dlg").close(); });
+  $("restock-form").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    if (!rs) return;
+    const f = ev.target.elements, raw = f.cost.value.trim(), c = raw ? parseEuro(raw) : null;
+    if (raw && !(c > 0)) { $("rs-error").textContent = "Coût invalide (ex. 18,90) ou laissez vide"; return; }
+    lastBuyAccount = Number(f.account.value) || null;
+    const { d, n } = rs;
+    try {
+      await call(() => Store.drinkStock(d.id, { delta: n, ...(c ? { cost_cents: c, account_id: lastBuyAccount } : {}) }));
+      rs = null; $("restock-dlg").close();
+      toast(`+${n} ${d.name}` + (c ? ` · achat ${euro(c)} en comptabilité` : ""));
+    } catch (e) { $("rs-error").textContent = e.message; return; }
+    quiet(loadDrinks()); quiet(loadStats());
+  });
 
   $("drink-form").addEventListener("submit", async (ev) => {
     ev.preventDefault();
@@ -375,6 +423,154 @@ const Admin = (() => {
   $("log-more").addEventListener("click", () => quiet(loadLog(false)));
   $("export-log").addEventListener("click", () =>
     quiet(call(() => Store.exportTransactions($("log-from").value || undefined, $("log-to").value || undefined)).then(deliver)));
+
+  // ---------------------------------------------------------------- Comptabilité
+  const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+  const typeLabel = (t) => Store.ACCOUNT_TYPES.find((x) => x.id === t)?.label || t;
+  const catLabel = (c) => Store.LEDGER_CATS.find((x) => x.id === c)?.label || c;
+  const plain = (c) => el("span", { class: "amt " + (c > 0 ? "credit" : c < 0 ? "owed" : "") }, (c < 0 ? "−" : "") + euro(Math.abs(c)));
+  let ledgerAcc = null;
+
+  function accHint(a) {
+    if (a.type !== "responsable") return "argent de la popote";
+    if (!a.balance_cents) return "à jour";
+    return a.balance_cents > 0 ? "détient cet argent de la popote" : "a avancé : la popote lui doit";
+  }
+  async function loadCompta() {
+    const s = await call(Store.accountingSummary);
+    const tile = (val, label, cls = "") => el("div", { class: "stat " + cls }, el("b", { class: "num" }, val), el("span", {}, label));
+    $("acc-summary").replaceChildren(
+      tile(euro(s.treasury_cents), "trésorerie (tous les comptes)", "owed"),
+      tile(euro(s.card_credits_cents), "déjà payé sur les cartes, pas encore consommé"),
+      tile(euro(s.owed_to_admins_cents), "dû aux responsables (avances)", s.owed_to_admins_cents ? "warn" : ""),
+      tile(euro(s.net_cents), "disponible réel (trésorerie − crédits des cartes" + (s.card_debts_cents ? " + découverts" : "") + ")"),
+    );
+    const active = s.accounts.filter((a) => a.active);
+    $("acc-grid").replaceChildren(...active.map((a) => el("button", {
+        type: "button", class: `acc-card t-${a.type}` + (ledgerAcc === a.id ? " sel" : ""),
+        onclick: () => { ledgerAcc = ledgerAcc === a.id ? null : a.id; quiet(loadCompta()); } },
+      el("span", { class: "acc-type" }, typeLabel(a.type)),
+      el("span", { class: "acc-name" }, a.name),
+      el("b", { class: "acc-bal" }, plain(a.balance_cents)),
+      el("span", { class: "acc-hint" }, accHint(a)))));
+    // formulaire d'écriture
+    const f = $("entry-form").elements;
+    if (!f.date.value) f.date.value = today();
+    fillAccounts(f.account, Number(f.account.value) || null);
+    syncEntryForm();
+    // gestion des comptes
+    $("acc-list").replaceChildren(...s.accounts.map((a) => {
+      const name = el("input", { value: a.name, maxlength: 30, "aria-label": "Nom du compte" });
+      name.addEventListener("change", () => accSave(a.id, { name: name.value }, "Compte renommé"));
+      return el("li", { class: a.active ? "" : "off" }, name,
+        el("span", { class: "tag" }, typeLabel(a.type)),
+        el("span", { class: "r" }, plain(a.balance_cents)),
+        el("button", { class: "btn btn-sm", type: "button",
+          onclick: () => accSave(a.id, { active: !a.active }, a.active ? `${a.name} archivé` : `${a.name} réactivé`) },
+          a.active ? "Archiver" : "Réactiver"));
+    }));
+    // écritures
+    fillAccounts($("ledger-acc"), ledgerAcc, { all: true });
+    $("ledger-acc").value = ledgerAcc || "";
+    const rows = Store.ledger({ account_id: ledgerAcc || undefined, month: $("ledger-month").value || undefined });
+    const name = (id) => s.accounts.find((a) => a.id === id)?.name || "?";
+    $("ledger-body").replaceChildren(...rows.map((e) => {
+      const sign = e.kind === "transfer" ? (ledgerAcc ? (e.to_account_id === ledgerAcc ? 1 : -1) : 0) : e.kind === "in" ? 1 : -1;
+      const amount = sign === 0 ? el("span", { class: "amt" }, "⇄ " + euro(e.amount_cents)) : money(sign * e.amount_cents, true);
+      return el("tr", { class: e.cancelled ? "off" : "" },
+        el("td", { class: "num nowrap" }, new Date(e.date + "T12:00").toLocaleDateString("fr-FR", { dateStyle: "short" })),
+        el("td", {}, el("span", { class: e.cancelled ? "struck" : "" }, e.label),
+          el("span", { class: "e-cat" }, catLabel(e.cat) + (e.note ? " · " + e.note : "") + (e.cancelled ? " · annulée" : ""))),
+        el("td", { class: "hide-sm muted" }, e.kind === "transfer" ? `${name(e.account_id)} → ${name(e.to_account_id)}` : name(e.account_id)),
+        el("td", { class: "r" }, e.cancelled ? el("span", { class: "struck" }, euro(e.amount_cents)) : amount),
+        el("td", { class: "r" }, !e.cancelled && e.cat !== "recharge"
+          ? el("button", { class: "btn btn-sm", type: "button", onclick: () => ledgerCancel(e) }, "Annuler") : ""));
+    }));
+    $("ledger-empty").hidden = rows.length > 0;
+  }
+  async function accSave(id, patch, msg) {
+    $("acc-error").textContent = "";
+    try { await call(() => Store.accountPatch(id, patch)); toast(msg); }
+    catch (e) { $("acc-error").textContent = e.message; }
+    quiet(loadCompta());
+  }
+  async function ledgerCancel(e) {
+    if (!confirm(`Annuler cette écriture ?\n${e.label} — ${euro(e.amount_cents)}\nElle reste visible, barrée, et ne compte plus dans les soldes.`)) return;
+    try { await call(() => Store.ledgerCancel(e.id)); toast("Écriture annulée"); }
+    catch (err) { toast(err.message); }
+    quiet(loadCompta());
+  }
+  function syncEntryForm() {
+    const f = $("entry-form").elements, kind = f.kind.value;
+    const keep = f.cat.value;
+    const cats = Store.LEDGER_CATS.filter((c) => c.kind === kind && !c.auto);
+    f.cat.replaceChildren(...cats.map((c) => el("option", { value: c.id }, c.label)));
+    if (cats.some((c) => c.id === keep)) f.cat.value = keep;
+    f.cat.disabled = cats.length < 2;
+    $("acc-to-wrap").hidden = kind !== "transfer";
+    $("acc-from-label").textContent = kind === "in" ? "Sur le compte" : kind === "out" ? "Payé par" : "Du compte";
+    if (kind === "transfer") fillAccounts(f.to, Number(f.to.value) || null, { exclude: Number(f.account.value) });
+  }
+  $("entry-form").addEventListener("change", (ev) => { if (["kind", "account"].includes(ev.target.name)) syncEntryForm(); });
+  $("entry-form").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const f = ev.target.elements, c = parseEuro(f.amount.value);
+    $("entry-error").textContent = "";
+    if (!(c > 0)) { $("entry-error").textContent = "Montant invalide (ex. 45,80)"; return; }
+    try {
+      await call(() => Store.ledgerAdd({ kind: f.kind.value, cat: f.cat.value, date: f.date.value, label: f.label.value,
+                                         amount_cents: c, account_id: Number(f.account.value), to_account_id: Number(f.to.value) || null,
+                                         note: f.note.value }));
+      toast(`Écriture enregistrée : ${euro(c)}`);
+      f.amount.value = ""; f.label.value = ""; f.note.value = "";
+    } catch (e) { $("entry-error").textContent = e.message; return; }
+    quiet(loadCompta());
+  });
+  $("acc-form").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const f = ev.target.elements, raw = f.opening.value.trim(), c = raw ? parseEuro(raw) : 0;
+    $("acc-error").textContent = "";
+    if (c === null) { $("acc-error").textContent = "Solde initial invalide (ex. 150 ou -20,50)"; return; }
+    try {
+      const a = await call(() => Store.accountCreate({ name: f.name.value, type: f.type.value, opening_cents: c }));
+      toast(`Compte « ${a.name} » créé`); ev.target.reset();
+    } catch (e) { $("acc-error").textContent = e.message; return; }
+    quiet(loadCompta());
+  });
+  $("ledger-acc").addEventListener("change", (ev) => { ledgerAcc = Number(ev.target.value) || null; quiet(loadCompta()); });
+  $("ledger-month").addEventListener("change", () => quiet(loadCompta()));
+
+  // ---------------------------------------------------------------- Export
+  const period = () => ({ from: $("exp-from").value || undefined, to: $("exp-to").value || undefined });
+  function setPreset(p) {
+    const d = new Date(), y = d.getFullYear(), m = d.getMonth();
+    const iso = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
+    const range = { month: [new Date(y, m, 1), new Date(y, m + 1, 0)], last: [new Date(y, m - 1, 1), new Date(y, m, 0)],
+                    year: [new Date(y, 0, 1), new Date(y, 11, 31)], all: [null, null] }[p];
+    $("exp-from").value = range[0] ? iso(range[0]) : ""; $("exp-to").value = range[1] ? iso(range[1]) : "";
+    quiet(loadExport());
+  }
+  async function loadExport() {
+    const { from, to } = period();
+    const fmt = (s) => new Date(s + "T12:00").toLocaleDateString("fr-FR", { dateStyle: "long" });
+    $("exp-period-txt").textContent = !from && !to ? "Toute la période enregistrée dans cet iPad."
+      : `Du ${from ? fmt(from) : "début"} au ${to ? fmt(to) : "aujourd'hui"}.`;
+    const { rows, total } = await call(() => Store.financeSummary(from, to));
+    const line = (r, label, cls = "") => el("tr", { class: cls }, el("td", {}, label),
+      ...["cards", "sales", "courses", "other_in", "costs"].map((k) => el("td", { class: "r num" }, euro(r[k]))),
+      el("td", { class: "r" }, plain(r.profit)), el("td", { class: "r" }, plain(r.cash)));
+    const MOIS = (k) => new Date(k + "-15").toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+    $("fin-body").replaceChildren(...(rows.length ? [...rows.map((r) => line(r, MOIS(r.month))), line(total, "Total", "total")]
+      : [el("tr", {}, el("td", { colspan: 8, class: "muted" }, "Rien sur cette période."))]));
+  }
+  $("exp-presets").addEventListener("click", (ev) => { const p = ev.target.closest("button")?.dataset.p; if (p) setPreset(p); });
+  ["exp-from", "exp-to"].forEach((id) => $(id).addEventListener("change", () => quiet(loadExport())));
+  const exportBtn = (id, fn) => $(id).addEventListener("click", () => { const { from, to } = period(); quiet(call(() => fn(from, to)).then(deliver)); });
+  exportBtn("exp-ardoises", Store.exportBalances);
+  exportBtn("exp-produits", Store.exportProducts);
+  exportBtn("exp-finances", Store.exportFinances);
+  exportBtn("exp-compta", Store.exportLedger);
+  exportBtn("exp-journal", Store.exportTransactions);
 
   // ---------------------------------------------------------------- Code responsable
   // Pavé numérique dans une fenêtre : code à 8 chiffres saisi deux fois. Renvoie le code ou null.
@@ -517,7 +713,7 @@ const Admin = (() => {
   }
   $("do-reset").addEventListener("click", async () => {
     if (!confirmWord("Réinitialiser : toutes les cartes, les soldes et le journal seront effacés.\n"
-                     + "Les produits, stocks, responsables et réglages sont gardés.", "REINITIALISER")) {
+                     + "Les produits, stocks, la comptabilité, le code responsable et les réglages sont gardés.", "REINITIALISER")) {
       toast("Réinitialisation annulée"); return;
     }
     try {
