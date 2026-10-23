@@ -223,7 +223,14 @@ const Admin = (() => {
     $("uc-dots").querySelectorAll("span").forEach((s, i) => s.classList.toggle("on", i < ucCode.length));
     $("uc-ok").hidden = ucCode.length !== USER_CODE_LEN;
   }
-  function ucReset() { ucCode = ""; ucRender(); }
+  // Le pavé s'ouvre avec « Changer le code » et se referme après « Valider le code » (ou « Annuler »)
+  function ucShow(open) {
+    $("uc-pad").hidden = !open;
+    $("uc-open").textContent = open ? "Annuler" : "Changer le code";
+    ucCode = ""; ucRender();
+  }
+  function ucReset() { ucShow(false); }
+  $("uc-open").addEventListener("click", () => { $("u-error").textContent = ""; ucShow($("uc-pad").hidden); });
   $("uc-keypad").addEventListener("click", (ev) => {
     const k = ev.target.closest("button")?.dataset.k;
     if (!k) return;

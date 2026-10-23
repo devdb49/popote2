@@ -791,3 +791,6 @@ input { -webkit-user-select: text; user-select: text; }
 #v-admin #code-form .dots { margin: 4px 0 6px; }
 #v-admin .uc-keypad button { height: 54px; font-size: 28px; }
 #v-admin .uc-keypad .key-alt { font-size: 14px; }
+#v-admin .uc-pad { display: flex; flex-direction: column; gap: 8px; }
+#v-admin .uc-pad[hidden] { display: none; }
+#v-admin #uc-open { align-self: flex-start; }

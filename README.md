@@ -45,7 +45,7 @@ Un seul responsable par section : le code est partagé par les personnes qui gè
   au journal ; une ardoise non réglée est signalée avant suppression puis notée comme effacée.
   Pour une carte validée : paiement reçu (« Tout régler », moyen de paiement — Liquide, Chèque, Virement bancaire, Wero,
   PayPal — et le compte sur lequel l'argent est encaissé), correction (montant + motif, bouton **+** pour créditer
-  ou **−** pour retirer), nouveau code au pavé numérique (6 chiffres, « Valider le code »), déblocage, désactivation.
+  ou **−** pour retirer), nouveau code (« Changer le code » ouvre un pavé à 6 chiffres, refermé par « Valider le code »), déblocage, désactivation.
 - *Produits* : classés en trois catégories — **Bières**, **Softs** (sans alcool) et **Divers** (chips,
   cacahuètes, saucisson, barres chocolatées…). Ajout avec sa catégorie, changement de catégorie, prix, emoji,
   réassort, inventaire. Le bouton **Retirer…** propose de retirer le produit de la borne (il reste dans la liste,

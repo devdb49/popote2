@@ -573,6 +573,8 @@
       </form>
       <form id="code-form" class="sub" autocomplete="off">
         <p class="muted">Nouveau code à 6 chiffres, à communiquer à la personne.</p>
+        <button class="btn" type="button" id="uc-open">Changer le code</button>
+        <div class="uc-pad" id="uc-pad" hidden>
         <div class="dots" id="uc-dots" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></div>
         <div class="keypad uc-keypad" id="uc-keypad">
           <button type="button" data-k="1">1</button><button type="button" data-k="2">2</button><button type="button" data-k="3">3</button>
@@ -583,6 +585,7 @@
           <button type="button" data-k="del" class="key-alt">Effacer</button>
         </div>
         <button class="btn btn-primary btn-block" type="submit" id="uc-ok" hidden>Valider le code</button>
+        </div>
       </form>
       <form id="rename-form" class="sub" autocomplete="off">
         <div class="row">
