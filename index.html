@@ -560,19 +560,29 @@
     <details class="block">
       <summary>Correction, code, compte</summary>
       <form id="adj-form" class="sub" autocomplete="off">
-        <p class="muted">Correction du solde : +3 ajoute 3 € sur la carte, −3 retire 3 €. Le motif est obligatoire.</p>
+        <p class="muted">Correction du solde : saisissez le montant et le motif, puis <b>+</b> pour le créditer sur la carte
+           ou <b>−</b> pour le retirer.</p>
         <div class="row">
-          <input name="amount" inputmode="decimal" placeholder="± €" required class="w-num" aria-label="Montant de la correction">
+          <input name="amount" inputmode="decimal" placeholder="Montant €" required class="w-num" aria-label="Montant de la correction">
           <input name="note" placeholder="Motif" required maxlength="200" aria-label="Motif">
         </div>
-        <button class="btn" type="submit">Appliquer la correction</button>
+        <div class="row pm-row">
+          <button class="btn pm plus" type="button" data-sign="plus" aria-label="Créditer sur la carte">+ <span>Créditer</span></button>
+          <button class="btn pm minus" type="button" data-sign="minus" aria-label="Retirer de la carte">− <span>Retirer</span></button>
+        </div>
       </form>
       <form id="code-form" class="sub" autocomplete="off">
         <p class="muted">Nouveau code à 6 chiffres, à communiquer à la personne.</p>
-        <div class="row">
-          <input name="code" inputmode="numeric" pattern="\d{6}" maxlength="6" required class="w-num" aria-label="Nouveau code">
-          <button class="btn" type="submit">Changer le code</button>
+        <div class="dots" id="uc-dots" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+        <div class="keypad uc-keypad" id="uc-keypad">
+          <button type="button" data-k="1">1</button><button type="button" data-k="2">2</button><button type="button" data-k="3">3</button>
+          <button type="button" data-k="4">4</button><button type="button" data-k="5">5</button><button type="button" data-k="6">6</button>
+          <button type="button" data-k="7">7</button><button type="button" data-k="8">8</button><button type="button" data-k="9">9</button>
+          <button type="button" data-k="clear" class="key-alt">Tout effacer</button>
+          <button type="button" data-k="0">0</button>
+          <button type="button" data-k="del" class="key-alt">Effacer</button>
         </div>
+        <button class="btn btn-primary btn-block" type="submit" id="uc-ok" hidden>Valider le code</button>
       </form>
       <form id="rename-form" class="sub" autocomplete="off">
         <div class="row">

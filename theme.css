@@ -780,3 +780,14 @@ input { -webkit-user-select: text; user-select: text; }
 #v-admin .choice span { font-size: 14px; color: var(--dim); line-height: 1.4; }
 #v-admin .choice.danger { border-color: rgba(242, 112, 106, .45); background: rgba(242, 112, 106, .06); }
 #v-admin .choice.danger b { color: var(--bad); }
+
+/* Fiche ardoise : correction + / − et pavé du nouveau code */
+#v-admin .pm-row { gap: 10px; }
+#v-admin .btn.pm { flex: 1; min-height: 48px; font-size: 22px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+#v-admin .btn.pm span { font-size: 15px; font-weight: 600; }
+#v-admin .btn.pm.plus { color: var(--good); border-color: rgba(109, 196, 142, .5); background: rgba(109, 196, 142, .08); }
+#v-admin .btn.pm.minus { color: var(--bad); border-color: rgba(242, 112, 106, .5); background: rgba(242, 112, 106, .07); }
+#v-admin #code-form { align-items: stretch; max-width: 340px; }
+#v-admin #code-form .dots { margin: 4px 0 6px; }
+#v-admin .uc-keypad button { height: 54px; font-size: 28px; }
+#v-admin .uc-keypad .key-alt { font-size: 14px; }

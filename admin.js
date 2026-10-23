@@ -159,7 +159,7 @@ const Admin = (() => {
     $("u-name").textContent = cur.name;
     $("u-balance").replaceChildren("Solde de la carte : ", amt(cur.balance_cents));
     $("u-error").textContent = "";
-    $("pay-form").reset(); $("adj-form").reset(); $("code-form").reset();
+    $("pay-form").reset(); $("adj-form").reset(); $("code-form").reset(); ucReset();
     $("rename-form").elements.name.value = cur.name;
     $("u-toggle").textContent = cur.active ? "Désactiver la carte" : "Réactiver la carte";
     $("u-locked").hidden = !cur.locked;
@@ -200,17 +200,45 @@ const Admin = (() => {
     if (!f.method.value) { $("u-error").textContent = "Choisissez le moyen de paiement"; return; }
     userAction(() => Store.payment(cur.id, c, f.method.value, lastPayAccount), `${euro(c)} crédités sur la carte (${f.method.value.toLowerCase()})`);
   });
-  $("adj-form").addEventListener("submit", (ev) => {
-    ev.preventDefault();
-    const f = ev.target.elements, c = parseEuro(f.amount.value);
-    if (!c) { $("u-error").textContent = "Montant invalide (ex. -2,00 ou 1,50)"; return; }
-    // Saisie du point de vue de la carte : +3 = ajoute 3 € au solde (en interne : la dette diminue)
-    userAction(() => Store.adjust(cur.id, -c, f.note.value),
-      c > 0 ? `${euro(c)} ajoutés sur la carte` : `${euro(-c)} retirés de la carte`);
+  // Correction : montant positif, bouton + (crédite la carte) ou − (retire de la carte)
+  // (la touche Entrée ne fait rien : il faut toucher + ou −)
+  $("adj-form").addEventListener("submit", (ev) => ev.preventDefault());
+  $("adj-form").addEventListener("click", (ev) => {
+    const sign = ev.target.closest("[data-sign]")?.dataset.sign;
+    if (!sign) return;
+    const f = $("adj-form").elements, c = parseEuro(String(f.amount.value).replace(/^[+−-]/, ""));
+    $("u-error").textContent = "";
+    if (!(c > 0)) { $("u-error").textContent = "Montant invalide (ex. 2,50)"; return; }
+    if (!f.note.value.trim()) { $("u-error").textContent = "Indiquez le motif de la correction"; return; }
+    const plus = sign === "plus";
+    // en interne balance_cents > 0 = dette : créditer la carte = diminuer la dette
+    userAction(() => Store.adjust(cur.id, plus ? -c : c, f.note.value),
+      plus ? `${euro(c)} crédités sur la carte` : `${euro(c)} retirés de la carte`);
+  });
+
+  // Nouveau code client : pavé numérique à 6 chiffres, « Valider le code » apparaît quand le code est complet
+  const USER_CODE_LEN = 6;
+  let ucCode = "";
+  function ucRender() {
+    $("uc-dots").querySelectorAll("span").forEach((s, i) => s.classList.toggle("on", i < ucCode.length));
+    $("uc-ok").hidden = ucCode.length !== USER_CODE_LEN;
+  }
+  function ucReset() { ucCode = ""; ucRender(); }
+  $("uc-keypad").addEventListener("click", (ev) => {
+    const k = ev.target.closest("button")?.dataset.k;
+    if (!k) return;
+    $("u-error").textContent = "";
+    if (k === "del") ucCode = ucCode.slice(0, -1);
+    else if (k === "clear") ucCode = "";
+    else if (ucCode.length < USER_CODE_LEN) ucCode += k;
+    ucRender();
   });
   $("code-form").addEventListener("submit", (ev) => {
     ev.preventDefault();
-    userAction(() => Store.userPatch(cur.id, { code: ev.target.elements.code.value }), "Code changé");
+    if (ucCode.length !== USER_CODE_LEN) return;
+    const code = ucCode;
+    ucReset();
+    userAction(() => Store.userPatch(cur.id, { code }), "Code changé : communiquez-le à la personne");
   });
   $("rename-form").addEventListener("submit", (ev) => {
     ev.preventDefault();
