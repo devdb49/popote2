@@ -2,7 +2,7 @@
  * Pour publier une mise à jour, augmenter VERSION (format x.y.z) : l'iPad la prendra au lancement suivant.
  *   x.y.Z : correction   x.Y.0 : nouvelle fonction   X.0.0 : changement majeur
  * La version est affichée sur l'accueil et dans Gestion > Réglages. */
-const VERSION = "3.11.1";
+const VERSION = "3.12.1";
 const CACHE = "popote-" + VERSION;
 const FILES = [
   "./", "index.html", "store.js", "kiosk.js", "admin.js", "boot.js",

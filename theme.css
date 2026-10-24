@@ -794,3 +794,18 @@ input { -webkit-user-select: text; user-select: text; }
 #v-admin .uc-pad { display: flex; flex-direction: column; gap: 8px; }
 #v-admin .uc-pad[hidden] { display: none; }
 #v-admin #uc-open { align-self: flex-start; }
+
+/* Pavé des montants en euros */
+#v-admin input[data-money] { cursor: pointer; caret-color: transparent; }
+#v-admin .numpad-dlg { width: min(360px, calc(100% - 24px)); }
+#v-admin .np-label { margin: 0; color: var(--dim); font-size: 15px; text-align: center; }
+#v-admin .np-value { margin: 6px 0 14px; padding: 10px 14px; border-radius: 14px; background: var(--night-2);
+  box-shadow: inset 0 0 0 1px var(--line); text-align: right; font-family: var(--display); font-weight: 800; font-size: 40px; line-height: 1.1; }
+#v-admin .np-value.fresh { color: var(--amber-hi); }
+#v-admin .np-keys button { height: 58px; }
+#v-admin .np-keys .np-dec { font-size: 36px; }
+#v-admin .np-keys .key-alt { font-size: 24px; }
+#v-admin .np-actions { display: flex; gap: 8px; margin-top: 12px; }
+#v-admin .np-actions .btn { flex: 1; min-height: 46px; }
+#v-admin .np-actions .btn[hidden] { display: none; }
+#v-admin .np-keys .np-dec:disabled { visibility: hidden; }

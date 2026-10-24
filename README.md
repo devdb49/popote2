@@ -71,6 +71,9 @@ Un seul responsable par section : le code est partagé par les personnes qui gè
   comptabilité, code responsable, réglages) ou *Tout effacer* (retour à la première mise en route). Chaque action demande
   de taper un mot de confirmation.
 - Sur l'écran des tarifs, deux lampes grésillent au hasard : placées à la même distance des bords gauche et droit de l'écran.
+- Tous les montants en euros et les quantités de stock se saisissent sur un pavé numérique intégré (chiffres, virgule
+  pour les montants, effacer ; ± pour un solde initial négatif ou une quantité à retirer) : le clavier de l'iPad ne
+  s'ouvre pas.
 - La sauvegarde et les exports n'envoient que le fichier (.json ou .csv), sans fichier texte en plus.
 - Images des produits : choisies dans une grille (bouton à gauche du nom), ou automatiques d'après le nom.
 - La gestion se referme seule après 5 minutes sans action, et avec « Revenir à la borne ».

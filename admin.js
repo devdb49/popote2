@@ -58,6 +58,71 @@ const Admin = (() => {
     return true;
   }
 
+  // ---------------------------------------------------------------- Pavé des montants
+  // Tous les champs en euros et les quantités (data-money, data-int pour un entier) s'ouvrent sur un pavé :
+  // chiffres, virgule (montants), effacer — jamais le clavier de l'iPad.
+  let np = null;
+  function npShow() {
+    const v = np.value;
+    $("np-value").textContent = (v === "" || v === "-" ? (v || "0") : v) + (np.int ? "" : " €");
+    $("np-value").classList.toggle("fresh", np.fresh && v !== "");
+  }
+  function openNumpad(input) {
+    input.blur();                       // ceinture et bretelles : aucun clavier iPad
+    const cur = String(input.value || "").replace(/[\s€]/g, "").replace(".", ",").replace(/^−/, "-");
+    const int = input.hasAttribute("data-int");      // nombre entier (stock, quantité) : pas de virgule ni d'euros
+    np = { input, int, value: (int ? /^-?\d*$/ : /^-?\d*(,\d{0,2})?$/).test(cur) ? cur : "", fresh: true,
+           signed: input.hasAttribute("data-signed") };
+    $("np-keys").querySelector(".np-dec").disabled = int;
+    $("np-label").textContent = input.getAttribute("aria-label") || input.placeholder || "Montant";
+    $("np-sign").hidden = !np.signed;
+    npShow();
+    $("numpad-dlg").showModal();
+  }
+  function npKey(k) {
+    if (!np) return;
+    let v = np.value;
+    if (k === "ok") {
+      const input = np.input, out = v.replace(/,$/, "");
+      np = null; $("numpad-dlg").close();
+      if (input.value !== out) {
+        input.value = out === "-" ? "" : out;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      return;
+    }
+    if (k === "cancel") { np = null; $("numpad-dlg").close(); return; }
+    if (np.fresh && /^[\d,]$/.test(k)) v = v.startsWith("-") ? "-" : "";      // 1re touche : remplace l'ancien montant
+    np.fresh = false;
+    const neg = v.startsWith("-"), body = neg ? v.slice(1) : v;
+    if (k === "del") v = v.slice(0, -1);
+    else if (k === "clear") v = "";
+    else if (k === "sign") { if (np.signed) v = neg ? body : "-" + body; }
+    else if (k === ",") { if (!np.int && !body.includes(",")) v = (neg ? "-" : "") + (body || "0") + ","; }
+    else if (/^\d$/.test(k)) {
+      const [int, dec] = body.split(",");
+      if (dec !== undefined ? dec.length < 2 : int.length < 6) {
+        v = (neg ? "-" : "") + (int === "0" && dec === undefined ? k : body + k);
+      }
+    }
+    np.value = v;
+    npShow();
+  }
+  $("numpad-dlg").addEventListener("click", (ev) => { const k = ev.target.closest("[data-k]")?.dataset.k; if (k) npKey(k); });
+  $("numpad-dlg").addEventListener("cancel", () => { np = null; });
+  $("v-admin").addEventListener("click", (ev) => {
+    const input = ev.target.closest("input[data-money]");
+    if (input && !input.disabled) { ev.preventDefault(); openNumpad(input); }
+  });
+  // Clavier physique éventuel (Magic Keyboard) : les touches marchent aussi sur le pavé
+  document.addEventListener("keydown", (ev) => {
+    if (!np) return;
+    const map = { Enter: "ok", Escape: "cancel", Backspace: "del", ".": ",", ",": ",", "-": "sign" };
+    const k = /^\d$/.test(ev.key) ? ev.key : map[ev.key];
+    if (k) { ev.preventDefault(); npKey(k); }
+  });
+
   // ---------------------------------------------------------------- Ouverture / fermeture
   let tab = "users", watch = null;
   function open(startTab = "users") {
@@ -73,7 +138,7 @@ const Admin = (() => {
   }
   function close() {
     clearInterval(watch);
-    for (const d of ["user-dlg", "restock-dlg", "drink-dlg"]) if ($(d).open) $(d).close();
+    for (const d of ["numpad-dlg", "user-dlg", "restock-dlg", "drink-dlg"]) if ($(d).open) $(d).close();
     Store.adminLogout();
     $("v-admin").hidden = true;
     Kiosk.home();
@@ -301,7 +366,7 @@ const Admin = (() => {
     const emoji = el("button", { class: "emoji-btn", type: "button", "aria-label": "Changer l'image" }, Store.emojiFor(d));
     emoji.addEventListener("click", () => pickEmoji((e) => save({ emoji: e }, "Image modifiée")));
     const name = el("input", { name: "name", value: d.name, maxlength: 40, "aria-label": "Nom" });
-    const price = el("input", { class: "w-num", inputmode: "decimal", "aria-label": "Prix en euros",
+    const price = el("input", { class: "w-num", inputmode: "none", readonly: true, "data-money": true, "aria-label": "Prix en euros",
                                 value: (d.price_cents / 100).toFixed(2).replace(".", ",") });
     name.addEventListener("change", () => name.value.trim() && save({ name: name.value }, "Nom modifié"));
     price.addEventListener("change", () => {
@@ -317,7 +382,8 @@ const Admin = (() => {
       save({ category: catSel.value }, `${d.name} → ${c.label}`);
     });
 
-    const qty = el("input", { inputmode: "numeric", placeholder: "qté", "aria-label": "Quantité" });
+    const qty = el("input", { inputmode: "none", readonly: true, "data-money": true, "data-int": true, "data-signed": true,
+                              placeholder: "qté", "aria-label": `Quantité — ${d.name}` });
     const stockOp = async (kind) => {
       const n = parseInt(String(qty.value).replace("−", "-"), 10);
       if (!Number.isFinite(n) || (kind === "delta" && n === 0) || (kind === "set" && n < 0)) {
@@ -383,7 +449,6 @@ const Admin = (() => {
     $("rs-error").textContent = ""; $("rs-unit").textContent = "";
     fillAccounts($("rs-account"), lastBuyAccount);
     $("restock-dlg").showModal();
-    f.cost.focus();
   }
   $("restock-form").elements.cost.addEventListener("input", (ev) => {
     const c = parseEuro(ev.target.value);

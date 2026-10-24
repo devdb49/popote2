@@ -214,8 +214,8 @@
       <input name="emoji" type="hidden">
       <button type="button" class="emoji-btn" id="new-emoji" aria-label="Choisir l'image">＋</button>
       <input name="name" placeholder="Nom du produit" required maxlength="40" aria-label="Nom">
-      <input name="price" placeholder="Prix €" required inputmode="decimal" class="w-num" aria-label="Prix en euros">
-      <input name="stock" placeholder="Stock" inputmode="numeric" class="w-num" aria-label="Stock initial">
+      <input name="price" placeholder="Prix €" required inputmode="none" readonly data-money class="w-num" aria-label="Prix en euros">
+      <input name="stock" placeholder="Stock" inputmode="none" readonly data-money data-int class="w-num" aria-label="Stock initial">
       <button class="btn btn-primary" type="submit">Ajouter le produit</button>
     </form>
     <p class="error" id="drink-error" role="alert"></p>
@@ -269,7 +269,7 @@
         </div>
         <div class="row">
           <label class="inline">Date <input type="date" name="date" required aria-label="Date"></label>
-          <label class="inline">Montant <input name="amount" inputmode="decimal" placeholder="€" required class="w-num" aria-label="Montant en euros"></label>
+          <label class="inline">Montant <input name="amount" inputmode="none" readonly data-money placeholder="€" required class="w-num" aria-label="Montant en euros"></label>
         </div>
         <label class="inline stack">Catégorie <select name="cat" aria-label="Catégorie"></select></label>
         <input name="label" maxlength="80" placeholder="Libellé (ex. Courses Leclerc, dépôt en banque…)" aria-label="Libellé">
@@ -290,7 +290,7 @@
           <select name="type" aria-label="Type de compte">
             <option value="responsable">Responsable</option><option value="caisse">Caisse</option><option value="banque">Banque</option>
           </select>
-          <input name="opening" inputmode="decimal" placeholder="Solde initial €" class="w-num" aria-label="Solde initial en euros">
+          <input name="opening" inputmode="none" readonly data-money data-signed placeholder="Solde initial €" class="w-num" aria-label="Solde initial en euros">
           <button class="btn" type="submit">Ajouter le compte</button>
         </form>
         <p class="error" id="acc-error" role="alert"></p>
@@ -433,7 +433,7 @@
            la personne pourra alors commander jusqu'à ce montant en négatif.</p>
         <form class="row" id="overdraft-form" autocomplete="off">
           <label class="inline">Découvert autorisé
-            <input name="amount" inputmode="decimal" class="w-num" aria-label="Découvert autorisé en euros"></label>
+            <input name="amount" inputmode="none" readonly data-money class="w-num" aria-label="Découvert autorisé en euros"></label>
           <button class="btn btn-primary" type="submit">Enregistrer</button>
         </form>
         <p class="muted">0 € = aucune commande au-delà du solde de la carte.</p>
@@ -486,6 +486,26 @@
     <p class="muted version-line">Version de l'application : <span class="app-version"></span></p>
   </section>
 
+  <!-- Pavé numérique des montants en euros (remplace le clavier de l'iPad) -->
+  <dialog class="fiche numpad-dlg" id="numpad-dlg">
+    <p class="np-label" id="np-label"></p>
+    <p class="np-value num" id="np-value"></p>
+    <div class="keypad np-keys" id="np-keys">
+      <button type="button" data-k="1">1</button><button type="button" data-k="2">2</button><button type="button" data-k="3">3</button>
+      <button type="button" data-k="4">4</button><button type="button" data-k="5">5</button><button type="button" data-k="6">6</button>
+      <button type="button" data-k="7">7</button><button type="button" data-k="8">8</button><button type="button" data-k="9">9</button>
+      <button type="button" data-k="," class="np-dec" aria-label="Virgule décimale">,</button>
+      <button type="button" data-k="0">0</button>
+      <button type="button" data-k="del" class="key-alt" aria-label="Effacer le dernier chiffre">⌫</button>
+    </div>
+    <div class="np-actions">
+      <button type="button" class="btn" data-k="sign" id="np-sign">±</button>
+      <button type="button" class="btn" data-k="clear">Tout effacer</button>
+      <button type="button" class="btn" data-k="cancel">Annuler</button>
+      <button type="button" class="btn btn-primary" data-k="ok">OK</button>
+    </div>
+  </dialog>
+
   <!-- Retirer / supprimer un produit -->
   <dialog class="fiche choice-dlg" id="drink-dlg">
     <h3 id="dd-title"></h3>
@@ -507,7 +527,7 @@
     <p class="muted">Indiquez ce que vous avez payé pour l'inscrire en comptabilité (achat de produits). Laissez vide si
        ce réassort n'a rien coûté ou s'il est déjà compté.</p>
     <div class="row">
-      <label class="inline">Coût total <input name="cost" inputmode="decimal" placeholder="€" class="w-num" aria-label="Coût d'achat total en euros"></label>
+      <label class="inline">Coût total <input name="cost" inputmode="none" readonly data-money placeholder="€" class="w-num" aria-label="Coût d'achat total en euros"></label>
       <label class="inline grow">payé par <select name="account" id="rs-account" aria-label="Compte qui a payé"></select></label>
     </div>
     <p class="muted" id="rs-unit"></p>
@@ -539,7 +559,7 @@
     <form class="block" id="pay-form" autocomplete="off">
       <h3>Recharger la carte / encaisser un paiement</h3>
       <div class="row">
-        <input name="amount" inputmode="decimal" placeholder="Montant €" required class="w-num" aria-label="Montant payé">
+        <input name="amount" inputmode="none" readonly data-money placeholder="Montant €" required class="w-num" aria-label="Montant payé">
         <button type="button" class="btn" id="pay-all">Tout régler</button>
       </div>
       <div class="row">
@@ -563,7 +583,7 @@
         <p class="muted">Correction du solde : saisissez le montant et le motif, puis <b>+</b> pour le créditer sur la carte
            ou <b>−</b> pour le retirer.</p>
         <div class="row">
-          <input name="amount" inputmode="decimal" placeholder="Montant €" required class="w-num" aria-label="Montant de la correction">
+          <input name="amount" inputmode="none" readonly data-money placeholder="Montant €" required class="w-num" aria-label="Montant de la correction">
           <input name="note" placeholder="Motif" required maxlength="200" aria-label="Motif">
         </div>
         <div class="row pm-row">
